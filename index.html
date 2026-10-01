@@ -44,9 +44,15 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 </div>
 <div id="workBox" style="margin-top:10px">
 <div class="row3">
-<div><label>Start</label><input id="start" type="time" value="08:00"></div>
-<div><label>Einde</label><input id="end" type="time" value="17:00"></div>
-<div><label>Pauze (min.)</label><input id="break" type="number" value="60" min="0"></div>
+<div><label>Start</label><input id="start" type="time" value="07:30"></div>
+<div><label>Einde</label><input id="end" type="time" value="16:30"></div>
+<div><label>Werkuren</label><input id="previewHours" value="08:00" disabled></div>
+</div>
+<div style="margin-top:10px">
+<label>Pauzes</label>
+<div id="pauses"></div>
+<button type="button" class="secondary" style="margin-top:7px;width:auto;padding:8px 12px" onclick="addPause()">+ Pauze toevoegen</button>
+<p class="small">Vul elke pauze in met begin- en eindtijd. Werk je een pauze door, laat die pauze weg of verwijder hem; dan worden die minuten als gewerkt en dus als overuren meegeteld.</p>
 </div>
 </div>
 <button style="margin-top:12px" onclick="add()">Opslaan</button>
@@ -65,7 +71,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 
 <section class="card">
 <h2>Registraties</h2>
-<table><thead><tr><th>Datum</th><th>Type</th><th>Uren</th><th>Saldo</th><th></th></tr></thead><tbody id="list"></tbody></table>
+<table><thead><tr><th>Datum</th><th>Type</th><th>Tijden</th><th>Uren</th><th>Saldo</th><th></th></tr></thead><tbody id="list"></tbody></table>
 </section>
 
 <section class="card">
@@ -79,7 +85,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <div><label>Werkdagen</label><input value="Maandag t/m donderdag" disabled></div>
 <div><label>Startdatum werkgever</label><input id="startDate" type="date" value="2026-10-01"></div>
 </div>
-<p class="small">De app gebruikt standaard 8 contracturen per werkdag. Overuren worden berekend als werkelijk gewerkte uren minus de contracturen van de geregistreerde werkdagen. Gegevens blijven lokaal op dit apparaat.</p>
+<p class="small">Standaard werk je 07:30–16:30 met 1 uur pauze = 8 gewerkte uren. Om 22:00 vult de app een ontbrekende werkdag automatisch in als 8 uur. Als je die dag afwijkend hebt gewerkt, registreer je die vóór 22:00 zelf. Gegevens blijven lokaal op dit apparaat.</p>
 <button onclick="settings()">Instellingen opslaan</button>
 <button class="secondary" style="margin-top:8px" onclick="exportCSV()">Exporteer CSV</button>
 </section>
@@ -91,10 +97,44 @@ let d=JSON.parse(localStorage.getItem(KEY)||'{"entries":[],"weekly":32,"annual":
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,'0');
 function fmt(m){let s=m<0?'-':'';m=Math.abs(Math.round(m));return s+pad(Math.floor(m/60))+':'+pad(m%60)}
+function localDate(){let x=new Date();return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())}
+function localTimeMinutes(){let x=new Date();return x.getHours()*60+x.getMinutes()}
 function workday(date){let x=new Date(date+'T12:00:00').getDay();return x>=1&&x<=4}
 function target(date){return workday(date)?d.weekly/4*60:0}
-function calcTime(a,b,br){let [h1,m1]=a.split(':').map(Number),[h2,m2]=b.split(':').map(Number);let x=h2*60+m2-(h1*60+m1)-Number(br||0);if(x<0)x+=1440;return x}
+function calcTime(a,b,br){if(!a||!b)return 0;let [h1,m1]=a.split(':').map(Number),[h2,m2]=b.split(':').map(Number);let x=h2*60+m2-(h1*60+m1)-Number(br||0);if(x<0)x+=1440;return x}
+function pauseMinutes(pauses){return (pauses||[]).reduce((sum,p)=>sum+calcTime(p.start,p.end,0),0)}
+function workMinutes(start,end,pauses){return Math.max(0,calcTime(start,end,0)-pauseMinutes(pauses))}
 function q4(e){return e.date>='2026-10-01'&&e.date<='2026-12-31'}
+function addPause(start='12:00',end='13:00'){
+ let row=document.createElement('div');row.className='pauseRow';row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:7px;margin-bottom:7px;align-items:end';
+ row.innerHTML=`<div><label>Van</label><input class="pauseStart" type="time" value="${start}"></div><div><label>Tot</label><input class="pauseEnd" type="time" value="${end}"></div><button type="button" class="danger removePause" style="width:auto;padding:10px 12px">×</button>`;
+ row.querySelector('.removePause').onclick=()=>{row.remove();updatePreview()};
+ row.querySelectorAll('input').forEach(i=>i.oninput=updatePreview);
+ $('pauses').appendChild(row);updatePreview();
+}
+function clearPauses(){ $('pauses').innerHTML=''; }
+function getPauses(){return [...document.querySelectorAll('.pauseRow')].map(r=>({start:r.querySelector('.pauseStart').value,end:r.querySelector('.pauseEnd').value})).filter(p=>p.start&&p.end)}
+function updatePreview(){
+ let mins=workMinutes($('start').value,$('end').value,getPauses());
+ $('previewHours').value=fmt(mins);
+}
+function resetWorkDefaults(){
+ $('start').value='07:30';$('end').value='16:30';clearPauses();addPause('12:00','13:00');updatePreview();
+}
+function autoFillDefaults(){
+ let today=localDate();
+ let eligible=d.entries;
+ let start=d.startDate||'2026-10-01';
+ // Only weekdays from the employer start date up to today. A date is filled once 22:00 has passed.
+ for(let dt=start;dt<=today;dt=nextDate(dt)){
+   if(!workday(dt)) continue;
+   if(eligible.some(e=>e.date===dt)) continue;
+   if(dt===today && localTimeMinutes()<22*60) continue;
+   d.entries.push({date:dt,type:'work',minutes:480,diff:0,start:'07:30',end:'16:30',pauses:[{start:'12:00',end:'13:00'}],auto:true});
+ }
+ save();
+}
+function nextDate(date){let x=new Date(date+'T12:00:00');x.setDate(x.getDate()+1);return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())}
 function render(){
  $('weekly').value=d.weekly;$('annual').value=d.annual;$('qLeave').value=d.qLeave;$('startDate').value=d.startDate;
  let q=d.entries.filter(q4), work=q.filter(e=>e.type==='work'), leaves=q.filter(e=>e.type==='leave');
@@ -102,27 +142,41 @@ function render(){
  $('worked').textContent=fmt(worked);$('contract').textContent=fmt(contract);$('sumWorked').textContent=fmt(worked);$('qOver').textContent=fmt(over);$('sumOver').textContent=fmt(over);$('leaveUsed').textContent=fmt(used);$('leaveRemain').textContent=fmt(d.qLeave*60-used);
  let ms=[['Oktober','2026-10'],['November','2026-11'],['December','2026-12']];
  $('months').innerHTML=ms.map(([name,p])=>{let a=q.filter(e=>e.date.startsWith(p)),w=a.filter(e=>e.type==='work'),l=a.filter(e=>e.type==='leave');let ww=w.reduce((x,e)=>x+e.minutes,0),cc=w.reduce((x,e)=>x+target(e.date),0),ll=l.reduce((x,e)=>x+e.minutes,0);return `<tr><td>${name}</td><td>${fmt(cc)}</td><td>${fmt(ww)}</td><td class="${ww-cc>=0?'good':'bad'}">${fmt(ww-cc)}</td><td>${fmt(ll)}</td></tr>`}).join('');
- $('list').innerHTML=[...d.entries].sort((a,b)=>b.date.localeCompare(a.date)).map((e,i)=>`<tr><td>${e.date}</td><td>${e.type==='work'?'Gewerkt':e.type==='leave'?'Verlof':e.type==='sick'?'Ziek':'Vrij'}</td><td>${fmt(e.minutes)}</td><td>${e.type==='work'?fmt(e.diff):'-'}</td><td><button class="danger" style="width:auto;padding:6px 9px" onclick="del(${i})">×</button></td></tr>`).join('');
+ $('list').innerHTML=d.entries.map((e,i)=>({e,i})).sort((a,b)=>b.e.date.localeCompare(a.e.date)).map(({e,i})=>{
+   let times='-';
+   if(e.type==='work'){
+     let ps=e.pauses||[];let ptxt=ps.length?`<br><span class="small">pauze ${ps.map(p=>p.start+'–'+p.end).join(', ')}</span>`:'';
+     times=(e.start&&e.end)?`${e.start}–${e.end}${ptxt}`:'-';
+   }
+   return `<tr><td>${e.date}</td><td>${e.type==='work'?'Gewerkt':e.type==='leave'?'Verlof':e.type==='sick'?'Ziek':'Vrij'}</td><td>${times}</td><td>${fmt(e.minutes)}</td><td>${e.type==='work'?fmt(e.diff):'-'}</td><td><button class="danger" style="width:auto;padding:6px 9px" onclick="del(${i})">×</button></td></tr>`;
+ }).join('');
 }
 function add(){
  let date=$('date').value;if(!date)return alert('Kies een datum.');
- let type=$('type').value, minutes=0;
- if(type==='work') minutes=calcTime($('start').value,$('end').value,$('break').value);
- else minutes=Math.round(Number($('hours').value||0)*60);
- let diff=type==='work'?minutes-target(date):0;
- d.entries.push({date,type,minutes,diff});save();render();
+ let type=$('type').value, minutes=0, entry={date,type,minutes:0,diff:0};
+ if(type==='work'){
+   let pauses=getPauses();minutes=workMinutes($('start').value,$('end').value,pauses);
+   entry.minutes=minutes;entry.diff=minutes-target(date);entry.start=$('start').value;entry.end=$('end').value;entry.pauses=pauses;
+ } else entry.minutes=Math.round(Number($('hours').value||0)*60);
+ // Replace an automatically generated placeholder when the user enters the real hours for that date.
+ let existing=d.entries.findIndex(e=>e.date===date&&e.auto);
+ if(existing>=0)d.entries.splice(existing,1);
+ d.entries.push(entry);save();render();
 }
 function del(i){if(confirm('Registratie verwijderen?')){d.entries.splice(i,1);save();render()}}
 function settings(){d.weekly=Number($('weekly').value)||32;d.annual=Number($('annual').value)||160;d.qLeave=Number($('qLeave').value)||40;d.startDate=$('startDate').value||'2026-10-01';save();render();alert('Instellingen opgeslagen.')}
 function save(){localStorage.setItem(KEY,JSON.stringify(d))}
 function exportCSV(){
- let rows=[['Datum','Type','Uren','Minuten','Saldo']];
- d.entries.forEach(e=>rows.push([e.date,e.type,fmt(e.minutes),e.minutes,e.type==='work'?fmt(e.diff):'']));
- let csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(';')).join('\\n');
+ let rows=[['Datum','Type','Start','Einde','Pauzes','Uren','Minuten','Saldo']];
+ d.entries.forEach(e=>rows.push([e.date,e.type,e.start||'',e.end||'',(e.pauses||[]).map(p=>p.start+'-'+p.end).join(', '),fmt(e.minutes),e.minutes,e.type==='work'?fmt(e.diff):'']));
+ let csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(';')).join('\n');
  let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mijn-uren.csv';a.click();URL.revokeObjectURL(a.href);
 }
-$('type').onchange=()=>{$('workBox').classList.toggle('hidden',$('type').value!=='work');$('leaveBox').classList.toggle('hidden',$('type').value==='work')};
-$('date').value=new Date().toISOString().slice(0,10);render();
+$('type').onchange=()=>{$('workBox').classList.toggle('hidden',$('type').value!=='work');$('leaveBox').classList.toggle('hidden',$('type').value==='work');if($('type').value==='work'&&!document.querySelector('.pauseRow'))resetWorkDefaults()};
+$('start').oninput=updatePreview;$('end').oninput=updatePreview;
+$('date').value=localDate();resetWorkDefaults();autoFillDefaults();render();
+// If the app stays open, check again around 22:00. If it was closed, the next opening catches up automatically.
+setInterval(()=>{autoFillDefaults();render()},30000);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script>
 </body></html>
