@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1f2937">
 <link rel="manifest" href="manifest.json">
-<title>Mijn Uren v4.3</title>
+<title>Mijn Uren v4.5</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}
 header{background:#1f2937;color:white;padding:18px 16px}header h1{margin:0 0 4px;font-size:24px}.sub{opacity:.8}
@@ -27,6 +27,31 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 <header><h1>Mijn Uren</h1><div class="sub">32 uur per week · maandag t/m donderdag</div></header>
 <main>
 <section class="card">
+<h2>Registratie per dag</h2>
+<div class="row"><div><label>Datum</label><input id="date" type="date"></div></div>
+<div class="notice"><b>Vul hier alle onderdelen van deze dag in.</b><br>Bijvoorbeeld: 07:30–11:30 gewerkt en 11:30–13:30 tandarts. Je slaat de hele dag in één keer op.</div>
+<div id="schedules"></div>
+<button type="button" class="secondary" onclick="addSchedule()">+ Nog een tijdschema</button>
+<button type="button" onclick="saveDay()">Dag opslaan</button>
+<div class="muted">Als je een datum kiest waarop al uren staan, worden die uren hieronder automatisch geladen. Je kunt ze dan aanpassen of een extra tijdschema toevoegen.</div>
+</section>
+<section class="card">
+<h2>Registraties per week</h2>
+<div class="row">
+<div><label>Jaar</label><select id="yearSelect" onchange="render()"></select></div>
+</div>
+<div id="weeks"></div>
+</section>
+<section class="card">
+<h2>Gepland verlof</h2>
+<div class="row">
+<div><label>Van</label><input id="leaveFrom" type="date"></div>
+<div><label>Tot en met</label><input id="leaveTo" type="date"></div>
+</div>
+<button id="plannedSaveBtn" onclick="editingPlannedId?savePlannedEdit():planLeave()">Verlof plannen</button>
+<div id="plannedList"></div>
+</section>
+<section class="card">
 <h2>Overzicht <span id="yearTitle"></span></h2>
 <div class="grid">
 <div class="kpi">Normale overuren (ma-do)<b id="ot">0:00</b></div>
@@ -38,40 +63,10 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 <div class="kpi">Na gepland verlof<b id="remaining">0:00</b></div>
 </div>
 </section>
-
 <section class="card">
 <h2>Afwezigheidsoverzicht</h2>
 <div class="grid" id="absenceCards"></div>
 </section>
-
-<section class="card">
-<h2>Registratie per dag</h2>
-<div class="row"><div><label>Datum</label><input id="date" type="date"></div></div>
-<div class="notice"><b>Vul hier alle onderdelen van deze dag in.</b><br>Bijvoorbeeld: 07:30–11:30 gewerkt en 11:30–13:30 tandarts. Je slaat de hele dag in één keer op.</div>
-<div id="schedules"></div>
-<button type="button" class="secondary" onclick="addSchedule()">+ Nog een tijdschema</button>
-<button type="button" onclick="saveDay()">Dag opslaan</button>
-<div class="muted">Als je een datum kiest waarop al uren staan, worden die uren hieronder automatisch geladen. Je kunt ze dan aanpassen of een extra tijdschema toevoegen.</div>
-</section>
-
-<section class="card">
-<h2>Gepland verlof</h2>
-<div class="row">
-<div><label>Van</label><input id="leaveFrom" type="date"></div>
-<div><label>Tot en met</label><input id="leaveTo" type="date"></div>
-</div>
-<button onclick="planLeave()">Verlof plannen</button>
-<div id="plannedList"></div>
-</section>
-
-<section class="card">
-<h2>Registraties per week</h2>
-<div class="row">
-<div><label>Jaar</label><select id="yearSelect" onchange="render()"></select></div>
-</div>
-<div id="weeks"></div>
-</section>
-
 <section class="card">
 <h2>Instellingen</h2>
 <div class="row">
@@ -93,8 +88,7 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 const KEY='mijn-uren-v4';
 const types={work:'Gewerkt',leave:'Verlof',dentist:'Tandarts',doctor:'Dokter',child_sick:'Kind ziek',self_sick:'Zelf ziek',other:'Overig'};
 let db=JSON.parse(localStorage.getItem(KEY)||'null')||{activities:[],planned:[],settings:{weekly:32,annualLeave:160,q4Leave:40,employment:'2026-10-01'}};
-let editId=null;
-
+let editingDay=false,editingPlannedId=null,scheduleCount=0;
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function mins(t){if(!t)return 0;let [h,m]=t.split(':').map(Number);return h*60+m}
 function fmt(n){n=Math.max(0,Math.round(n));let h=Math.floor(n/60),m=n%60;return `${h}:${String(m).padStart(2,'0')}`}
@@ -102,21 +96,24 @@ function dateObj(s){return new Date(s+'T12:00:00')}
 function iso(d){return d.toISOString().slice(0,10)}
 function dow(s){return dateObj(s).getDay()}
 function week(s){let d=dateObj(s), th=new Date(d); th.setDate(d.getDate()+(4-(d.getDay()||7))); let y=th.getFullYear(); let jan=new Date(y,0,1); return Math.ceil((((th-jan)/86400000)+1)/7)}
-function activityDuration(a){return Math.max(0,mins(a.end)-mins(a.start)-((a.type==='work')?(a.pauses||[]).reduce((x,p)=>x+Math.max(0,mins(p.end)-mins(p.start)),0):0))}
+function rawDuration(a){return Math.max(0,mins(a.end)-mins(a.start)-((a.type==='work')?(a.pauses||[]).reduce((x,p)=>x+Math.max(0,mins(p.end)-mins(p.start)),0):0))}
+function activityDuration(a){
+  let raw=rawDuration(a);
+  // A full leave day consumes 8 hours, even though the normal work window is 07:30–16:30.
+  if(a.type==='leave' && raw>=480) return 480;
+  return raw;
+}
 function inYear(a,y){return a.date.startsWith(y+'-')}
 function target(){return Number(db.settings.weekly||32)*60/4}
-
-let scheduleCount=0;
 function init(){
  document.getElementById('weekly').value=db.settings.weekly;document.getElementById('annualLeave').value=db.settings.annualLeave;
  document.getElementById('q4Leave').value=db.settings.q4Leave;document.getElementById('employment').value=db.settings.employment;
- let today=new Date();document.getElementById('date').value=iso(today);
- fillYears();autoFill();render();loadDay();
+ let today=new Date();document.getElementById('date').value=iso(today);fillYears();autoFill();render();loadDay();
  document.getElementById('date').addEventListener('change',loadDay);
 }
 function fillYears(){
  let years=new Set([new Date().getFullYear(),2026]);db.activities.forEach(a=>years.add(+a.date.slice(0,4)));db.planned.forEach(a=>years.add(+a.date.slice(0,4)));
- let s=document.getElementById('yearSelect'),old=s.value||new Date().getFullYear();s.innerHTML=[...years].sort().map(y=>`<option>${y}</option>`).join('');s.value=years.has(+old)?old:Math.max(...years);
+ let sel=document.getElementById('yearSelect'),old=+sel.value||new Date().getFullYear();sel.innerHTML=[...years].sort().map(y=>`<option>${y}</option>`).join('');sel.value=years.has(old)?old:Math.max(...years);
 }
 function scheduleHTML(n,a={type:'',start:'',end:'',pauses:[]}){
  let opts=['','work','leave','dentist','doctor','child_sick','self_sick','other'].map(t=>`<option value="${t}" ${a.type===t?'selected':''}>${t===''?'Kies soort':types[t]}</option>`).join('');
@@ -125,80 +122,59 @@ function scheduleHTML(n,a={type:'',start:'',end:'',pauses:[]}){
 }
 function addSchedule(a=null){scheduleCount++;document.getElementById('schedules').insertAdjacentHTML('beforeend',scheduleHTML(scheduleCount,a||{}));let box=document.querySelector('#schedules .scheduleBox:last-child');wireSchedule(box);updateAllPreviews()}
 function wireSchedule(box){box.querySelector('.stype').addEventListener('change',()=>{box.querySelector('.pauseArea').style.display=box.querySelector('.stype').value==='work'?'block':'none';updateAllPreviews()});box.querySelectorAll('input').forEach(x=>x.addEventListener('input',updateAllPreviews))}
-function addPauseTo(btn){let area=btn.parentElement.querySelector('.pauses');let d=document.createElement('div');d.className='row pause';d.innerHTML='<div><input type="time" class="ps"></div><div><input type="time" class="pe"></div><button type="button" class="secondary small" onclick="this.parentElement.remove();updateAllPreviews()">Verwijder pauze</button>';area.appendChild(d);d.querySelectorAll('input').forEach(x=>x.addEventListener('input',updateAllPreviews));updateAllPreviews()}
-function removeSchedule(btn){let boxes=document.querySelectorAll('#schedules .scheduleBox');if(boxes.length<=1){alert('Er moet minimaal één tijdschema blijven staan.');return}btn.closest('.scheduleBox').remove();updateAllPreviews()}
+function addPauseTo(btn){let area=btn.parentElement.querySelector('.pauses'),d=document.createElement('div');d.className='row pause';d.innerHTML='<div><input type="time" class="ps"></div><div><input type="time" class="pe"></div><button type="button" class="secondary small" onclick="this.parentElement.remove();updateAllPreviews()">Verwijder pauze</button>';area.appendChild(d);d.querySelectorAll('input').forEach(x=>x.addEventListener('input',updateAllPreviews));updateAllPreviews()}
+function removeSchedule(btn){let boxes=document.querySelectorAll('#schedules .scheduleBox');if(boxes.length<=1){alert('Er moet minimaal één tijdschema blijven staan.');return}btn.closest('.scheduleBox').remove();updateScheduleNumbers();updateAllPreviews()}
+function updateScheduleNumbers(){document.querySelectorAll('#schedules .scheduleBox').forEach((b,i)=>{b.dataset.n=i+1;b.querySelector('h3').textContent='Tijdschema '+(i+1)})}
 function readSchedule(box){let type=box.querySelector('.stype').value;let pauses=[...box.querySelectorAll('.pause')].map(p=>({start:p.querySelector('.ps').value,end:p.querySelector('.pe').value})).filter(p=>p.start&&p.end);return {type,start:box.querySelector('.sstart').value,end:box.querySelector('.send').value,pauses:type==='work'?pauses:[]}}
-function durationOfSchedule(a){return activityDuration(a)}
-function updateAllPreviews(){document.querySelectorAll('#schedules .scheduleBox').forEach(b=>{let a=readSchedule(b);b.querySelector('.preview').textContent=fmt(durationOfSchedule(a))})}
+function updateAllPreviews(){document.querySelectorAll('#schedules .scheduleBox').forEach(b=>{let a=readSchedule(b);b.querySelector('.preview').textContent=fmt(activityDuration(a))})}
 function loadDay(){
- let ds=document.getElementById('date').value;document.getElementById('schedules').innerHTML='';scheduleCount=0;
- let existing=db.activities.filter(a=>a.date===ds && !a.auto);
- let auto=db.activities.filter(a=>a.date===ds && a.auto);
+ let ds=document.getElementById('date').value;document.getElementById('schedules').innerHTML='';scheduleCount=0;editingDay=false;
+ let existing=db.activities.filter(a=>a.date===ds && !a.auto),auto=db.activities.filter(a=>a.date===ds && a.auto);
  if(existing.length) existing.forEach(a=>addSchedule(a));
  else if(auto.length) addSchedule({...auto[0],start:'07:30',end:'16:30'});
  else addSchedule({type:'work',start:'07:30',end:'16:30',pauses:[{start:'12:00',end:'13:00'}]});
+ updateEditNotice();
 }
+function updateEditNotice(){let n=document.querySelector('#schedules')?.previousElementSibling;}
 function saveDay(){
  let ds=document.getElementById('date').value;if(!ds){alert('Vul een datum in.');return}
  let boxes=[...document.querySelectorAll('#schedules .scheduleBox')],acts=[];
- for(let i=0;i<boxes.length;i++){let a=readSchedule(boxes[i]);if(!a.type)continue;if(!a.start||!a.end){alert('Vul begin en einde in bij tijdschema '+(i+1)+'.');return}acts.push({id:crypto.randomUUID(),date:ds,type:a.type,start:a.start,end:a.end,pauses:a.pauses})}
+ for(let i=0;i<boxes.length;i++){let a=readSchedule(boxes[i]);if(!a.type)continue;if(!a.start||!a.end){alert('Vul begin en einde in bij tijdschema '+(i+1)+'.');return}if(mins(a.end)<=mins(a.start)){alert('Eindtijd moet na begintijd liggen bij tijdschema '+(i+1)+'.');return}acts.push({id:crypto.randomUUID(),date:ds,type:a.type,start:a.start,end:a.end,pauses:a.pauses})}
  if(!acts.length){alert('Vul minimaal één activiteit in.');return}
- // Replace the whole day so an automatically filled 8-hour day can be split into multiple activities.
- db.activities=db.activities.filter(a=>a.date!==ds);
- db.activities.push(...acts);save();render();loadDay();
- alert('Dag opgeslagen: '+acts.length+' tijdschema'+(acts.length===1?'':'\'s')+'.');
+ db.activities=db.activities.filter(a=>a.date!==ds);db.activities.push(...acts);save();render();loadDay();alert('Dag opgeslagen: '+acts.length+' tijdschema'+(acts.length===1?'':'’s')+'.');
 }
-
 function autoFill(){
- let startDate=dateObj(db.settings.employment), today=new Date();today.setHours(0,0,0,0);
- let d=new Date(startDate);
- while(d<=today){let ds=iso(d), existing=db.activities.some(a=>a.date===ds); if(d.getDay()>=1&&d.getDay()<=4&&!existing){let after22=new Date(d);after22.setHours(22,0,0,0);if(new Date()>after22)db.activities.push({id:crypto.randomUUID(),date:ds,type:'work',start:'07:30',end:'16:30',pauses:[{start:'12:00',end:'13:00'}],auto:true})}d.setDate(d.getDate()+1)}save()
+ let startDate=dateObj(db.settings.employment),today=new Date();today.setHours(0,0,0,0);let d=new Date(startDate);
+ while(d<=today){let ds=iso(d),existing=db.activities.some(a=>a.date===ds);if(d.getDay()>=1&&d.getDay()<=4&&!existing){let after22=new Date(d);after22.setHours(22,0,0,0);if(new Date()>after22)db.activities.push({id:crypto.randomUUID(),date:ds,type:'work',start:'07:30',end:'16:30',pauses:[{start:'12:00',end:'13:00'}],auto:true})}d.setDate(d.getDate()+1)}save()
 }
 function planLeave(){
  let f=leaveFrom.value,t=leaveTo.value;if(!f||!t||f>t){alert('Kies een geldige periode.');return}
- let d=dateObj(f);while(d<=dateObj(t)){if(d.getDay()>=1&&d.getDay()<=4){let ds=iso(d);if(!db.planned.some(x=>x.date===ds))db.planned.push({id:crypto.randomUUID(),date:ds,start:'07:30',end:'16:30'})}d.setDate(d.getDate()+1)}save();render()
+ let d=dateObj(f);while(d<=dateObj(t)){if(d.getDay()>=1&&d.getDay()<=4){let ds=iso(d),old=db.planned.find(x=>x.date===ds);if(old){old.start='07:30';old.end='16:30'}else db.planned.push({id:crypto.randomUUID(),date:ds,start:'07:30',end:'16:30'})}d.setDate(d.getDate()+1)}save();render();leaveFrom.value='';leaveTo.value='';editingPlannedId=null
 }
+function editDay(date){document.getElementById('date').value=date;loadDay();window.scrollTo({top:0,behavior:'smooth'})}
+function editPlanned(id){let x=db.planned.find(p=>p.id===id);if(!x)return;editingPlannedId=id;leaveFrom.value=x.date;leaveTo.value=x.date;document.getElementById('plannedSaveBtn').textContent='Gepland verlof aanpassen';window.scrollTo({top:document.getElementById('leaveFrom').getBoundingClientRect().top+scrollY-100,behavior:'smooth'});}
+function savePlannedEdit(){if(!editingPlannedId){planLeave();return}let f=leaveFrom.value;if(!f){alert('Kies een datum.');return}let x=db.planned.find(p=>p.id===editingPlannedId);if(!x)return;x.date=f;x.start='07:30';x.end='16:30';save();editingPlannedId=null;document.getElementById('plannedSaveBtn').textContent='Verlof plannen';render()}
 function saveSettings(){db.settings.weekly=+weekly.value;db.settings.annualLeave=+annualLeave.value;db.settings.q4Leave=+q4Leave.value;db.settings.employment=employment.value;save();render()}
-function edit(a){
- editId=a.id;document.getElementById('date').value=a.date;document.getElementById('type1').value=a.type;
- document.getElementById('start1').value=a.start;document.getElementById('end1').value=a.end;
- document.getElementById('type2').value='';document.getElementById('start2').value='';document.getElementById('end2').value='';
- document.getElementById('pauses1').innerHTML='';document.getElementById('pauses2').innerHTML='';
- (a.pauses||[]).forEach(p=>addPause(1,p.start,p.end));if(a.type==='work'&&!(a.pauses||[]).length)addPause(1);
- toggleType(1);toggleType(2);scrollTo(0,0)
-}
-function absenceDetails(t){
- let y=+yearSelect.value,arr=db.activities.filter(a=>inYear(a,y)&&a.type===t).sort((a,b)=>a.date.localeCompare(b.date));
- dialogTitle.textContent=types[t]+' — '+fmt(arr.reduce((s,a)=>s+activityDuration(a),0));
- dialogBody.innerHTML=arr.length?arr.map(a=>`<div class="activity"><span>${new Date(a.date+'T12:00').toLocaleDateString('nl-NL')} · ${a.start}–${a.end}</span><b>${fmt(activityDuration(a))}</b></div>`).join(''):'<p>Geen registraties in dit jaar.</p>';
- absenceDialog.showModal()
-}
-function renderAbsenceCards(){
- let box=document.getElementById('absenceCards'),y=+yearSelect.value;
- box.innerHTML=['leave','dentist','doctor','child_sick','self_sick','other'].map(t=>{let n=db.activities.filter(a=>inYear(a,y)&&a.type===t).reduce((s,a)=>s+activityDuration(a),0);return `<div class="kpi" onclick="absenceDetails('${t}')" style="cursor:pointer">${types[t]}<b>${fmt(n)}</b><span class="muted">klik voor datums</span></div>`}).join('')
-}
+function edit(a){editDay(a.date)}
+function absenceDetails(t){let y=+yearSelect.value,arr=db.activities.filter(a=>inYear(a,y)&&a.type===t).sort((a,b)=>a.date.localeCompare(b.date));dialogTitle.textContent=types[t]+' — '+fmt(arr.reduce((s,a)=>s+activityDuration(a),0));dialogBody.innerHTML=arr.length?arr.map(a=>`<div class="activity"><span>${new Date(a.date+'T12:00').toLocaleDateString('nl-NL')} · ${a.start}–${a.end}</span><b>${fmt(activityDuration(a))}</b></div>`).join(''):'<p>Geen registraties in dit jaar.</p>';absenceDialog.showModal()}
+function renderAbsenceCards(){let box=document.getElementById('absenceCards'),y=+yearSelect.value;box.innerHTML=['leave','dentist','doctor','child_sick','self_sick','other'].map(t=>{let n=db.activities.filter(a=>inYear(a,y)&&a.type===t).reduce((s,a)=>s+activityDuration(a),0);return `<div class="kpi" onclick="absenceDetails('${t}')" style="cursor:pointer">${types[t]}<b>${fmt(n)}</b><span class="muted">klik voor datums</span></div>`}).join('')}
+function dayWorkMinutes(acts){return acts.filter(a=>a.type==='work').reduce((s,a)=>s+activityDuration(a),0)}
 function render(){
- fillYears();let y=+yearSelect.value;document.getElementById('yearTitle').textContent=y;
- let arr=db.activities.filter(a=>inYear(a,y)),work=arr.filter(a=>a.type==='work');
- let normal=0,fs=0;work.forEach(a=>{let m=activityDuration(a),d=dow(a.date);if(d===5||d===6)fs+=m;else normal+=m-target()});normal=Math.max(0,normal);
+ fillYears();let y=+yearSelect.value;document.getElementById('yearTitle').textContent=y;let arr=db.activities.filter(a=>inYear(a,y));
+ let byDay={};arr.forEach(a=>(byDay[a.date]??=[]).push(a));let normal=0,fs=0;Object.entries(byDay).forEach(([ds,aa])=>{let m=dayWorkMinutes(aa),d=dow(ds);if([5,6].includes(d))fs+=m;else normal+=Math.max(0,m-target())});
  document.getElementById('ot').textContent=fmt(normal);document.getElementById('fs').textContent=fmt(fs);document.getElementById('totalExtra').textContent=fmt(normal+fs);
  let available=+db.settings.annualLeave;if(y===2026&&db.settings.employment==='2026-10-01')available=+db.settings.q4Leave;
  let taken=arr.filter(a=>a.type==='leave').reduce((s,a)=>s+activityDuration(a),0);
- let planned=db.planned.filter(a=>a.date.startsWith(y+'-')&&a.date>=iso(new Date())).reduce((s,a)=>s+Math.max(0,mins(a.end)-mins(a.start)),0);
+ let today=iso(new Date()),planned=db.planned.filter(a=>a.date.startsWith(y+'-')&&a.date>=today).reduce((s,a)=>s+8*60,0);
  document.getElementById('available').textContent=fmt(available);document.getElementById('taken').textContent=fmt(taken);document.getElementById('planned').textContent=fmt(planned);document.getElementById('remaining').textContent=fmt(available-taken-planned);
  renderAbsenceCards();renderWeeks(y);renderPlanned()
 }
 function renderWeeks(y){
- let arr=db.activities.filter(a=>inYear(a,y)).sort((a,b)=>a.date.localeCompare(b.date)),map={};
- arr.forEach(a=>(map[week(a.date)]??=[]).push(a));
- let box=document.getElementById('weeks');box.innerHTML='';
- Object.keys(map).sort((a,b)=>b-a).forEach(w=>{let acts=map[w],work=acts.filter(a=>a.type==='work'),ot=0,fs=0;work.forEach(a=>{let m=activityDuration(a);if([5,6].includes(dow(a.date)))fs+=m;else ot+=Math.max(0,m-target())});
- let days={};acts.forEach(a=>(days[a.date]??=[]).push(a));
- let body=Object.entries(days).map(([ds,aa])=>`<div class="day"><b>${new Date(ds+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})}</b>${aa.map(a=>`<div class="activity"><span><span class="tag">${types[a.type]}</span> ${a.start}–${a.end} · ${fmt(activityDuration(a))}${a.auto?' · automatisch':''}</span><button class="small secondary" onclick='edit(${JSON.stringify(a)})'>Bewerk</button></div>`).join('')}</div>`).join('');
- let d=document.createElement('div');d.className='week';d.innerHTML=`<div class="weekhead" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden"><span>Week ${w}</span><span>${fmt(work.reduce((s,a)=>s+activityDuration(a),0))} gewerkt · ${fmt(ot)} normaal extra · ${fmt(fs)} vr/za</span></div><div class="weekbody">${body}</div>`;box.appendChild(d)
- })
+ let arr=db.activities.filter(a=>inYear(a,y)).sort((a,b)=>a.date.localeCompare(b.date)),map={};arr.forEach(a=>(map[week(a.date)]??=[]).push(a));let box=document.getElementById('weeks');box.innerHTML='';
+ Object.keys(map).sort((a,b)=>b-a).forEach(w=>{let acts=map[w],days={};acts.forEach(a=>(days[a.date]??=[]).push(a));let ot=0,fs=0;Object.entries(days).forEach(([ds,aa])=>{let m=dayWorkMinutes(aa);if([5,6].includes(dow(ds)))fs+=m;else ot+=Math.max(0,m-target())});let workTotal=acts.filter(a=>a.type==='work').reduce((s,a)=>s+activityDuration(a),0);
+ let body=Object.entries(days).map(([ds,aa])=>`<div class="day"><b>${new Date(ds+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})}</b>${aa.map(a=>`<div class="activity"><span><span class="tag">${types[a.type]}</span> ${a.start}–${a.end} · ${fmt(activityDuration(a))}${a.auto?' · automatisch':''}</span><button class="small secondary" onclick="editDay('${a.date}')">Bewerk dag</button></div>`).join('')}</div>`).join('');let d=document.createElement('div');d.className='week';d.innerHTML=`<div class="weekhead" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden"><span>Week ${w}</span><span>${fmt(workTotal)} gewerkt · ${fmt(ot)} normaal extra · ${fmt(fs)} vr/za</span></div><div class="weekbody">${body}</div>`;box.appendChild(d)})
 }
-function renderPlanned(){let y=+yearSelect.value,a=db.planned.filter(x=>x.date.startsWith(y+'-')).sort((x,y)=>x.date.localeCompare(y.date));document.getElementById('plannedList').innerHTML=a.length?'<h3>Gepland</h3>'+a.map(x=>`<div class="activity">${new Date(x.date+'T12:00').toLocaleDateString('nl-NL')} · ${x.start}–${x.end} · ${fmt(mins(x.end)-mins(x.start))}</div>`).join(''):'<div class="muted">Nog geen gepland verlof.</div>'}
+function renderPlanned(){let y=+yearSelect.value,a=db.planned.filter(x=>x.date.startsWith(y+'-')).sort((a,b)=>a.date.localeCompare(b.date));document.getElementById('plannedList').innerHTML=a.length?'<h3>Gepland</h3>'+a.map(x=>`<div class="activity"><span>${new Date(x.date+'T12:00').toLocaleDateString('nl-NL')} · 8:00 uur</span><button class="small secondary" onclick="editPlanned('${x.id}')">Bewerk</button></div>`).join(''):'<div class="muted">Nog geen gepland verlof.</div>'}
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mijn-uren-backup.json';a.click();URL.revokeObjectURL(a.href)}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();init();alert('Back-up teruggezet.')}catch(x){alert('Dit bestand is geen geldige back-up.')}};r.readAsText(f)}
 init();
