@@ -43,7 +43,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <h2>Registratie <span id="formMode" class="small"></span></h2>
 <div class="row3">
 <div><label>Datum</label><input id="date" type="date"></div>
-<div><label>Type</label><select id="type"><option value="work">Gewerkt</option><option value="leave">Verlof</option><option value="sick">Ziek</option><option value="other">Vrij / anders</option></select></div>
+<div><label>Type</label><select id="type"><option value="work">Gewerkt</option><option value="leave">Verlof</option><option value="dentist">Tandarts</option><option value="doctor">Dokter</option><option value="child_sick">Kind ziek</option><option value="sick">Zelf ziek</option><option value="other">Overig</option></select></div>
 <div id="leaveBox"><label>Uren</label><input id="hours" type="number" value="8" min="0" step=".25"></div>
 </div>
 <div id="workBox" style="margin-top:10px">
@@ -55,6 +55,21 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <div style="margin-top:10px"><label>Pauzes</label><div id="pauses"></div>
 <button type="button" class="secondary" style="margin-top:7px;width:auto;padding:8px 12px" onclick="addPause()">+ Pauze toevoegen</button>
 <p class="small">Laat een pauze weg als je hebt doorgewerkt. Die tijd telt dan als gewerkt.</p></div>
+<div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:10px">
+<label style="display:flex;align-items:center;gap:8px;margin:0;color:#172033">
+<input id="partialLeave" type="checkbox" style="width:auto">
+Rest van de werkdag vrij (verlof)
+</label>
+<div id="partialLeaveInfo" class="small" style="margin-top:5px">De app berekent automatisch hoeveel verlofuren er nog overblijven.</div>
+</div>
+</div>
+<div id="absenceBox" class="hidden" style="margin-top:10px">
+<div class="row3">
+<div><label>Van</label><input id="absenceStart" type="time" value="07:30"></div>
+<div><label>Tot</label><input id="absenceEnd" type="time" value="16:30"></div>
+<div><label>Afwezigheid</label><input id="absencePreview" value="08:00" disabled></div>
+</div>
+<p class="small" style="margin-top:7px">Vul altijd de werkelijke begin- en eindtijd van de afwezigheid in. Deze uren worden niet van je verlofsaldo afgetrokken, behalve bij type <b>Verlof</b>.</p>
 </div>
 <div id="statusBox" style="margin-top:10px" class="hidden"><label>Overwerkstatus</label><select id="status"><option value="open">Openstaand</option><option value="paid">Uitbetaald</option><option value="time">Tijd voor tijd</option></select><p class="small">De gewerkte uren blijven altijd bewaard. Alleen de status van het overwerk verandert.</p></div>
 <div class="actions" style="margin-top:12px"><button id="saveBtn" onclick="saveEntry()">Opslaan</button><button id="cancelBtn" class="secondary hidden" onclick="cancelEdit()">Annuleren</button></div>
@@ -83,6 +98,13 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px so
 <div><div class="small">Totaal extra gewerkt</div><strong id="sTotalExtra">00:00</strong></div>
 <div><div class="small">Totaal verwerkt</div><strong id="sTotalProcessed">00:00</strong></div>
 </div>
+</section>
+
+<section class="card">
+<h2>Afwezigheidsoverzicht</h2>
+<p class="small">Klik op een soort om de geregistreerde dagen en tijden te bekijken. Alleen verlof telt mee voor je verlofsaldo.</p>
+<div id="absenceSummary" class="summary"></div>
+<div id="absenceDetails" style="margin-top:12px"></div>
 </section>
 
 <section class="card">
@@ -123,7 +145,10 @@ function pauseMinutes(ps){return (ps||[]).reduce((s,p)=>s+calcTime(p.start,p.end
 function workMinutes(start,end,ps){return Math.max(0,calcTime(start,end)-pauseMinutes(ps))}
 function statusLabel(s){return s==='paid'?'Uitbetaald':s==='time'?'Tijd voor tijd':'Openstaand'}
 function statusClass(s){return s==='paid'?'paid':s==='time'?'time':'open'}
-function ensureData(){d.entries=(d.entries||[]).map(e=>{if(e.status!=='paid'&&e.status!=='time'&&e.status!=='open')e.status='open';if(e.type==='work'&&typeof e.minutes!=='number'){e.minutes=workMinutes(e.start,e.end,e.pauses||[])}if(e.type==='work'&&typeof e.diff!=='number')e.diff=e.minutes-target(e.date);return e});d.weekly=Number(d.weekly)||32;d.annual=Number(d.annual)||160;d.qLeave=Number(d.qLeave)||40;d.startDate=d.startDate||'2026-10-01'}
+function absenceLabel(t){return t==='leave'?'Verlof':t==='dentist'?'Tandarts':t==='doctor'?'Dokter':t==='child_sick'?'Kind ziek':t==='sick'?'Zelf ziek':'Overig'}
+function absenceTypes(){return ['leave','dentist','doctor','child_sick','sick','other']}
+function absenceMinutes(e){if(e.type==='work')return 0;if(e.start&&e.end)return Math.max(0,calcTime(e.start,e.end));return Number(e.minutes||0)}
+function ensureData(){d.entries=(d.entries||[]).map(e=>{if(e.status!=='paid'&&e.status!=='time'&&e.status!=='open')e.status='open';if(e.type==='work'&&typeof e.minutes!=='number'){e.minutes=workMinutes(e.start,e.end,e.pauses||[])}if(e.type==='work'&&typeof e.leaveMinutes!=='number')e.leaveMinutes=0;if(e.type==='work'&&typeof e.diff!=='number')e.diff=e.minutes-target(e.date);return e});d.weekly=Number(d.weekly)||32;d.annual=Number(d.annual)||160;d.qLeave=Number(d.qLeave)||40;d.startDate=d.startDate||'2026-10-01'}
 function save(){ensureData();localStorage.setItem(KEY,JSON.stringify(d))}
 function nextDate(date){let x=new Date(date+'T12:00:00');x.setDate(x.getDate()+1);return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())}
 function autoFillDefaults(){let today=localDate(),start=d.startDate||'2026-10-01';for(let dt=start;dt<=today;dt=nextDate(dt)){if(!workday(dt))continue;if(d.entries.some(e=>e.date===dt))continue;if(dt===today&&localTimeMinutes()<1320)continue;d.entries.push({date:dt,type:'work',minutes:480,diff:0,start:'07:30',end:'16:30',pauses:[{start:'12:00',end:'13:00'}],auto:true,status:'open'})}save()}
@@ -132,20 +157,22 @@ function clearPauses(){$('pauses').innerHTML=''}
 function getPauses(){return [...document.querySelectorAll('.pauseRow')].map(r=>({start:r.querySelector('.pauseStart').value,end:r.querySelector('.pauseEnd').value})).filter(p=>p.start&&p.end)}
 function updatePreview(){$('previewHours').value=fmt(workMinutes($('start').value,$('end').value,getPauses()))}
 function resetWorkDefaults(){ $('start').value='07:30';$('end').value='16:30';clearPauses();addPause();updatePreview() }
-function setFormForEdit(e,i){editIndex=i;$('formMode').textContent='· bewerken';$('saveBtn').textContent='Wijziging opslaan';$('cancelBtn').classList.remove('hidden');$('date').value=e.date;$('type').value=e.type;$('hours').value=(e.minutes/60).toFixed(2).replace(/\.00$/,'');$('start').value=e.start||'07:30';$('end').value=e.end||'16:30';clearPauses();(e.pauses||[]).forEach(p=>addPause(p.start,p.end));if(e.type==='work'&&!(e.pauses||[]).length){} $('status').value=e.status||'open';toggleType();updateStatusBox()}
-function cancelEdit(){editIndex=null;$('formMode').textContent='';$('saveBtn').textContent='Opslaan';$('cancelBtn').classList.add('hidden');$('date').value=localDate();$('type').value='work';$('hours').value=8;resetWorkDefaults();toggleType();updateStatusBox()}
-function toggleType(){$('workBox').classList.toggle('hidden',$('type').value!=='work');$('leaveBox').classList.toggle('hidden',$('type').value==='work');updateStatusBox()}
+function setFormForEdit(e,i){editIndex=i;$('formMode').textContent='· bewerken';$('saveBtn').textContent='Wijziging opslaan';$('cancelBtn').classList.remove('hidden');$('date').value=e.date;$('type').value=e.type;$('hours').value=(e.minutes/60).toFixed(2).replace(/\.00$/,'');$('start').value=e.start||'07:30';$('end').value=e.end||'16:30';$('absenceStart').value=e.start||'07:30';$('absenceEnd').value=e.end||'16:30';clearPauses();(e.pauses||[]).forEach(p=>addPause(p.start,p.end));$('partialLeave').checked=Number(e.leaveMinutes||0)>0;$('status').value=e.status||'open';toggleType();updatePartialLeave();updateStatusBox();updateAbsencePreview()}
+function cancelEdit(){editIndex=null;$('formMode').textContent='';$('saveBtn').textContent='Opslaan';$('cancelBtn').classList.add('hidden');$('date').value=localDate();$('type').value='work';$('hours').value=8;$('partialLeave').checked=false;$('absenceStart').value='07:30';$('absenceEnd').value='16:30';resetWorkDefaults();toggleType();updatePartialLeave();updateStatusBox();updateAbsencePreview()}
+function toggleType(){let t=$('type').value,work=t==='work';$('workBox').classList.toggle('hidden',!work);$('leaveBox').classList.toggle('hidden',work);$('absenceBox').classList.toggle('hidden',work);updatePartialLeave();updateStatusBox();updateAbsencePreview()}
+function updatePartialLeave(){let show=$('type').value==='work'&&workday($('date').value);$('partialLeave').disabled=!show;if(!show)$('partialLeave').checked=false;let mins=show?workMinutes($('start').value,$('end').value,getPauses()):0,need=show?Math.max(0,target($('date').value)-mins):0;$('partialLeaveInfo').textContent=need>0?`Bij deze tijden is ${fmt(need)} verlof nodig om de normale werkdag van ${fmt(target($('date').value))} uur te vullen.`:(show?'Je hebt de normale werkdag al gehaald; er wordt geen verlof afgetrokken.':'Verlof voor de resterende werkdag is alleen van toepassing op maandag t/m donderdag.');}
 function updateStatusBox(){let show=$('type').value==='work';$('statusBox').classList.toggle('hidden',!show);if(show){let mins=workMinutes($('start').value,$('end').value,getPauses()),extra=weekendExtra($('date').value)?mins:Math.max(0,mins-target($('date').value));$('statusBox').classList.toggle('hidden',extra<=0)}}
-function saveEntry(){let date=$('date').value;if(!date)return alert('Kies een datum.');let type=$('type').value,entry={date,type,minutes:0,diff:0};if(type==='work'){let ps=getPauses(),mins=workMinutes($('start').value,$('end').value,ps);entry.minutes=mins;entry.diff=mins-target(date);entry.start=$('start').value;entry.end=$('end').value;entry.pauses=ps;entry.status=$('status').value||'open'}else entry.minutes=Math.round(Number($('hours').value||0)*60);if(editIndex!==null){d.entries[editIndex]=entry}else{let existing=d.entries.findIndex(e=>e.date===date&&e.auto);if(existing>=0)d.entries.splice(existing,1);let duplicate=d.entries.findIndex(e=>e.date===date);if(duplicate>=0){if(!confirm('Er bestaat al een registratie voor deze datum. Wil je die vervangen?'))return;d.entries[duplicate]=entry}else d.entries.push(entry)}save();cancelEdit();renderAll()}
+function updateAbsencePreview(){$('absencePreview').value=fmt(Math.max(0,calcTime($('absenceStart').value,$('absenceEnd').value)))}
+function saveEntry(){let date=$('date').value;if(!date)return alert('Kies een datum.');let type=$('type').value,entry={date,type,minutes:0,diff:0};if(type==='work'){let ps=getPauses(),mins=workMinutes($('start').value,$('end').value,ps),leaveMinutes=($('partialLeave').checked&&workday(date))?Math.max(0,target(date)-mins):0;entry.minutes=mins;entry.leaveMinutes=leaveMinutes;entry.diff=mins-target(date);entry.start=$('start').value;entry.end=$('end').value;entry.pauses=ps;entry.status=$('status').value||'open'}else{let st=$('absenceStart').value,en=$('absenceEnd').value;if(!st||!en)return alert('Vul een begin- en eindtijd in.');entry.start=st;entry.end=en;entry.minutes=absenceMinutes(entry);entry.leaveMinutes=0;entry.diff=0;entry.status='open'}if(editIndex!==null){d.entries[editIndex]=entry}else{let existing=d.entries.findIndex(e=>e.date===date&&e.auto);if(existing>=0)d.entries.splice(existing,1);let duplicate=d.entries.findIndex(e=>e.date===date);if(duplicate>=0){if(!confirm('Er bestaat al een registratie voor deze datum. Wil je die vervangen?'))return;d.entries[duplicate]=entry}else d.entries.push(entry)}save();cancelEdit();renderAll()}
 function edit(i){setFormForEdit(d.entries[i],i);window.scrollTo({top:0,behavior:'smooth'})}
 function overtimeParts(e){if(e.type!=='work')return {kind:'none',mins:0};if(weekendExtra(e.date))return {kind:'weekend',mins:Math.max(0,e.minutes)};return {kind:'normal',mins:Math.max(0,e.minutes-target(e.date))}}
 function aggregate(entries){let r={normal:{open:0,paid:0,time:0},weekend:{open:0,paid:0,time:0}};entries.forEach(e=>{let p=overtimeParts(e);if(p.mins>0){let s=e.status||'open';if(!r[p.kind][s])r[p.kind][s]=0;r[p.kind][s]+=p.mins}});return r}
 
 function leaveEntitlement(year){return year===2026?d.qLeave:d.annual}
 function leaveSummary(year){
-  let today=localDate(), es=d.entries.filter(e=>e.date.startsWith(year+'-')&&e.type==='leave');
-  let taken=es.filter(e=>e.date<=today).reduce((s,e)=>s+e.minutes,0);
-  let planned=es.filter(e=>e.date>today).reduce((s,e)=>s+e.minutes,0);
+  let today=localDate(), all=d.entries.filter(e=>e.date.startsWith(year+'-'));
+  let taken=all.filter(e=>e.date<=today).reduce((s,e)=>s+(e.type==='leave'?e.minutes:(e.type==='work'?Number(e.leaveMinutes||0):0)),0);
+  let planned=all.filter(e=>e.date>today).reduce((s,e)=>s+(e.type==='leave'?e.minutes:(e.type==='work'?Number(e.leaveMinutes||0):0)),0);
   let entitlement=leaveEntitlement(year);
   return {entitlement:entitlement*60,taken,planned,remaining:entitlement*60-taken-planned};
 }
@@ -203,16 +230,18 @@ function renderYearHistory(){
     let normal=pa.normal.open+pa.normal.paid+pa.normal.time,weekend=pa.weekend.open+pa.weekend.paid+pa.weekend.time;
     return `<details class="week"><summary>Week ${w} <span class="small">· ${fmt(wk)} gewerkt · normaal +${fmt(normal)} · vr/za +${fmt(weekend)}</span></summary><div class="weekbody"><table><thead><tr><th>Datum</th><th>Type</th><th>Tijden</th><th>Uren</th><th>Overwerk</th><th>Status</th><th></th></tr></thead><tbody>${arr.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>{
       let p=overtimeParts(e),ot=p.mins,otLabel=ot?fmt(ot):'-',status=ot?`<span class="badge ${statusClass(e.status)}">${statusLabel(e.status)}</span>`:'-';
-      let times=e.type==='work'?(e.start&&e.end?`${e.start}–${e.end}`:'-'):'-';
-      let typeLabel=e.type==='work'?'Gewerkt':e.type==='leave'?'Verlof':e.type==='sick'?'Ziek':'Vrij';
+      let times=(e.start&&e.end)?`${e.start}–${e.end}`:'-';
+      let typeLabel=e.type==='work'?(e.leaveMinutes>0?`Gewerkt + verlof ${fmt(e.leaveMinutes)}`:'Gewerkt'):absenceLabel(e.type);
       return `<tr><td>${dayName(e.date)} ${e.date}</td><td>${typeLabel}${e.type==='leave'&&e.date>localDate()?' <span class="badge">Gepland</span>':''}</td><td>${times}${e.type==='work'&&(e.pauses||[]).length?`<br><span class="small">pauze ${(e.pauses||[]).map(p=>p.start+'–'+p.end).join(', ')}</span>`:''}</td><td>${fmt(e.minutes)}</td><td>${otLabel}${p.kind==='weekend'&&ot?' <span class="small">vr/za</span>':''}</td><td>${status}</td><td><button class="link" onclick="edit(${d.entries.indexOf(e)})">Bewerk</button></td></tr>`;
     }).join('')}</tbody></table></div></details>`;
   }).join('')||'<p class="small">Nog geen registraties in dit jaar.</p>';
 }
-function renderAll(){ensureData();renderDashboard();renderYearOptions();renderYearHistory();$('weekly').value=d.weekly;$('annual').value=d.annual;$('qLeave').value=d.qLeave;$('startDate').value=d.startDate}
+function renderAbsenceSummary(){let year=new Date().getFullYear(),es=d.entries.filter(e=>e.date.startsWith(year+'-'));let labels={leave:'Verlof',dentist:'Tandarts',doctor:'Dokter',child_sick:'Kind ziek',sick:'Zelf ziek',other:'Overig'},html='';absenceTypes().forEach(t=>{let arr=es.filter(e=>e.type===t);let mins=arr.reduce((s,e)=>s+absenceMinutes(e),0);html+=`<button class="secondary absenceBtn" onclick="toggleAbsenceDetails('${t}')"><b>${labels[t]}</b><br><span>${fmt(mins)}</span></button>`});$('absenceSummary').innerHTML=html;$('absenceDetails').innerHTML=''}
+function toggleAbsenceDetails(type){let year=new Date().getFullYear(),arr=d.entries.filter(e=>e.date.startsWith(year+'-')&&e.type===type).sort((a,b)=>a.date.localeCompare(b.date));if(!arr.length){$('absenceDetails').innerHTML=`<div class="small">Nog geen registraties voor ${absenceLabel(type).toLowerCase()}.</div>`;return}let total=arr.reduce((s,e)=>s+absenceMinutes(e),0);$('absenceDetails').innerHTML=`<div class="card" style="margin:0"><h3 style="margin-top:0">${absenceLabel(type)} · ${fmt(total)}</h3>${arr.map(e=>`<div style="display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding:8px 0"><span>${dayName(e.date)} ${e.date}</span><b>${e.start&&e.end?e.start+'–'+e.end:fmt(absenceMinutes(e))}</b></div>`).join('')}</div>`}
+function renderAll(){ensureData();renderDashboard();renderYearOptions();renderYearHistory();renderAbsenceSummary();$('weekly').value=d.weekly;$('annual').value=d.annual;$('qLeave').value=d.qLeave;$('startDate').value=d.startDate}
 function settings(){d.weekly=Number($('weekly').value)||32;d.annual=Number($('annual').value)||160;d.qLeave=Number($('qLeave').value)||40;d.startDate=$('startDate').value||'2026-10-01';save();renderAll();alert('Instellingen opgeslagen.')}
-function exportCSV(){let rows=[['Datum','Type','Start','Einde','Pauzes','Uren','Minuten','Overwerk','Categorie','Status']];d.entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{let p=overtimeParts(e);rows.push([e.date,e.type,e.start||'',e.end||'',(e.pauses||[]).map(p=>p.start+'-'+p.end).join(', '),fmt(e.minutes),e.minutes,p.mins?fmt(p.mins):'',p.kind,statusLabel(e.status)])});let csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(';')).join('\n');let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mijn-uren.csv';a.click();URL.revokeObjectURL(a.href)}
-$('type').onchange=toggleType;$('date').oninput=updateStatusBox;$('start').oninput=()=>{updatePreview();updateStatusBox()};$('end').oninput=()=>{updatePreview();updateStatusBox()};
-$('date').value=localDate();$('leaveFrom').value=localDate();$('leaveTo').value=localDate();ensureData();resetWorkDefaults();autoFillDefaults();renderAll();setInterval(()=>{autoFillDefaults();renderAll()},30000);if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+function exportCSV(){let rows=[['Datum','Type','Start','Einde','Pauzes','Uren','Verlof','Minuten','Overwerk','Categorie','Status']];d.entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{let p=overtimeParts(e);rows.push([e.date,e.type,e.start||'',e.end||'',(e.pauses||[]).map(p=>p.start+'-'+p.end).join(', '),fmt(e.minutes),e.leaveMinutes?fmt(e.leaveMinutes):'',e.minutes,p.mins?fmt(p.mins):'',p.kind,statusLabel(e.status)])});let csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(';')).join('\n');let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mijn-uren.csv';a.click();URL.revokeObjectURL(a.href)}
+$('type').onchange=toggleType;$('date').oninput=()=>{updatePartialLeave();updateStatusBox()};$('start').oninput=()=>{updatePreview();updatePartialLeave();updateStatusBox()};$('end').oninput=()=>{updatePreview();updatePartialLeave();updateStatusBox()};$('partialLeave').onchange=updatePartialLeave;$('absenceStart').oninput=updateAbsencePreview;$('absenceEnd').oninput=updateAbsencePreview;
+$('date').value=localDate();$('leaveFrom').value=localDate();$('leaveTo').value=localDate();ensureData();$('partialLeave').checked=false;resetWorkDefaults();updatePartialLeave();updateAbsencePreview();autoFillDefaults();renderAll();setInterval(()=>{autoFillDefaults();renderAll()},30000);if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script>
 </body></html>
