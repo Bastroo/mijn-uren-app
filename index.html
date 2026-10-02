@@ -20,7 +20,7 @@ label{display:block;font-weight:bold;margin:8px 0 4px}input,select{width:100%;pa
 .week{border:1px solid #dbe0e6;border-radius:12px;margin:9px 0;overflow:hidden}.weekhead{padding:12px;background:#f9fafb;cursor:pointer;font-weight:bold;display:flex;justify-content:space-between;gap:8px}.weekbody{padding:10px}.day{border-top:1px solid #eee;padding:9px 0}.activity{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:#f9fafb;border-radius:8px;margin:4px 0}.tag{font-size:12px;padding:3px 7px;border-radius:99px;background:#e5e7eb}
 dialog{border:0;border-radius:14px;width:min(600px,94vw);padding:0;box-shadow:0 10px 40px #0005}dialog::backdrop{background:#0006}.modal{padding:18px}.list button{float:right}
 details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
-.notice{padding:10px;border-radius:9px;background:#eff6ff;margin:8px 0}
+.notice{padding:10px;border-radius:9px;background:#eff6ff;margin:8px 0}.scheduleBox{border:1px solid #dbe0e6;border-radius:12px;padding:12px;margin:10px 0}.scheduleBox h3{margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -48,23 +48,46 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 <h2>Registratie</h2>
 <div class="row">
 <div><label>Datum</label><input id="date" type="date"></div>
-<div><label>Type</label><select id="type">
+</div>
+
+<div class="scheduleBox">
+<h3>Tijdschema 1</h3>
+<div class="row">
+<div><label>Type</label><select id="type1">
 <option value="work">Gewerkt</option><option value="leave">Verlof</option>
 <option value="dentist">Tandarts</option><option value="doctor">Dokter</option>
 <option value="child_sick">Kind ziek</option><option value="self_sick">Zelf ziek</option><option value="other">Overig</option>
 </select></div>
-<div><label>Begin</label><input id="start" type="time"></div>
-<div><label>Einde</label><input id="end" type="time"></div>
+<div><label>Begin</label><input id="start1" type="time"></div>
+<div><label>Einde</label><input id="end1" type="time"></div>
 </div>
-<div id="pauseArea">
-<label>Pauzes bij gewerkt</label><div id="pauses"></div><button type="button" class="secondary" onclick="addPause()">+ Pauze toevoegen</button>
+<div id="pauseArea1">
+<label>Pauzes bij gewerkt</label><div id="pauses1"></div><button type="button" class="secondary" onclick="addPause(1)">+ Pauze toevoegen</button>
 </div>
-<div class="notice" id="preview">Duur: 0:00</div>
-<button onclick="saveActivity()">Opslaan</button>
-<button class="secondary" onclick="clearForm()">Leegmaken</button>
-<div class="muted">Je kunt meerdere activiteiten op dezelfde dag invoeren, bijvoorbeeld 4 uur werken + 2 uur tandarts + 2 uur verlof.</div><div id="dayActivities" style="margin-top:10px"></div>
-</section>
+<div class="notice">Duur schema 1: <b id="preview1">0:00</b></div>
+</div>
 
+<div class="scheduleBox">
+<h3>Tijdschema 2</h3>
+<div class="row">
+<div><label>Type</label><select id="type2">
+<option value="">Niet gebruiken</option><option value="work">Gewerkt</option><option value="leave">Verlof</option>
+<option value="dentist">Tandarts</option><option value="doctor">Dokter</option>
+<option value="child_sick">Kind ziek</option><option value="self_sick">Zelf ziek</option><option value="other">Overig</option>
+</select></div>
+<div><label>Begin</label><input id="start2" type="time"></div>
+<div><label>Einde</label><input id="end2" type="time"></div>
+</div>
+<div id="pauseArea2">
+<label>Pauzes bij gewerkt</label><div id="pauses2"></div><button type="button" class="secondary" onclick="addPause(2)">+ Pauze toevoegen</button>
+</div>
+<div class="notice">Duur schema 2: <b id="preview2">0:00</b></div>
+</div>
+
+<button onclick="saveActivities()">Opslaan</button>
+<button class="secondary" onclick="clearForm()">Leegmaken</button>
+<div class="muted">Je kunt nu twee verschillende dingen op dezelfde dag tegelijk invullen. Bijvoorbeeld 4 uur gewerkt + 2 uur tandarts. Daarna kun je nog een derde activiteit toevoegen door de dag opnieuw te kiezen.</div>
+</section>
 <section class="card">
 <h2>Gepland verlof</h2>
 <div class="row">
@@ -121,41 +144,52 @@ function init(){
  document.getElementById('weekly').value=db.settings.weekly;document.getElementById('annualLeave').value=db.settings.annualLeave;
  document.getElementById('q4Leave').value=db.settings.q4Leave;document.getElementById('employment').value=db.settings.employment;
  let today=new Date();document.getElementById('date').value=iso(today);
- document.getElementById('start').value='07:30';document.getElementById('end').value='16:30';addPause('12:00','13:00');
- fillYears();autoFill();render();toggleType();
- ['start','end'].forEach(x=>document.getElementById(x).addEventListener('input',updatePreview));
- document.getElementById('type').addEventListener('change',toggleType);
+ document.getElementById('start1').value='07:30';document.getElementById('end1').value='16:30';addPause(1,'12:00','13:00');
+ fillYears();autoFill();render();toggleType(1);toggleType(2);updatePreview();
+ ['start1','end1','start2','end2'].forEach(x=>document.getElementById(x).addEventListener('input',updatePreview));
+ document.getElementById('type1').addEventListener('change',()=>toggleType(1));
+ document.getElementById('type2').addEventListener('change',()=>toggleType(2));
 }
 function fillYears(){
  let years=new Set([new Date().getFullYear(),2026]);db.activities.forEach(a=>years.add(+a.date.slice(0,4)));db.planned.forEach(a=>years.add(+a.date.slice(0,4)));
  let s=document.getElementById('yearSelect'),old=s.value||new Date().getFullYear();s.innerHTML=[...years].sort().map(y=>`<option>${y}</option>`).join('');s.value=years.has(+old)?old:Math.max(...years);
 }
-function addPause(st='',en=''){let d=document.createElement('div');d.className='row pause';d.innerHTML=`<div><input type="time" class="ps" value="${st}"></div><div><input type="time" class="pe" value="${en}"></div><button type="button" class="secondary small" onclick="this.parentElement.remove();updatePreview()">Verwijder</button>`;document.getElementById('pauses').appendChild(d);d.querySelectorAll('input').forEach(x=>x.addEventListener('input',updatePreview));updatePreview()}
-function updatePreview(){let a={type:document.getElementById('type').value,start:document.getElementById('start').value,end:document.getElementById('end').value,pauses:[...document.querySelectorAll('.pause')].map(p=>({start:p.querySelector('.ps').value,end:p.querySelector('.pe').value}))};document.getElementById('preview').textContent='Duur: '+fmt(activityDuration(a))}
-function toggleType(){let work=document.getElementById('type').value==='work';document.getElementById('pauseArea').style.display=work?'block':'none';updatePreview()}
-function clearForm(){editId=null;document.getElementById('start').value='07:30';document.getElementById('end').value='16:30';document.getElementById('type').value='work';document.getElementById('pauses').innerHTML='';addPause('12:00','13:00');toggleType()}
-function saveActivity(){
- const fDate=document.getElementById('date').value;
- const fType=document.getElementById('type').value;
- const fStart=document.getElementById('start').value;
- const fEnd=document.getElementById('end').value;
- let a={id:editId||crypto.randomUUID(),date:fDate,type:fType,start:fStart,end:fEnd,pauses:[]};
- if(!a.date||!a.start||!a.end){alert('Vul datum, begin en einde in.');return}
- if(a.type==='work')a.pauses=[...document.querySelectorAll('.pause')].map(p=>({start:p.querySelector('.ps').value,end:p.querySelector('.pe').value})).filter(p=>p.start&&p.end);
- if(editId){
-   const old=db.activities.findIndex(x=>x.id===editId);
-   if(old>=0) db.activities[old]=a; else db.activities.push(a);
- } else {
-   // Een nieuwe registratie wordt ALTIJD toegevoegd. Daardoor kunnen op dezelfde dag meerdere activiteiten staan.
-   db.activities.push(a);
- }
- save();editId=null;clearForm();render();
- showDayActivities(fDate);
+function addPause(n,st='',en=''){
+ let d=document.createElement('div');d.className='row pause';
+ d.innerHTML=`<div><input type="time" class="ps${n}" value="${st}"></div><div><input type="time" class="pe${n}" value="${en}"></div><button type="button" class="secondary small" onclick="this.parentElement.remove();updatePreview()">Verwijder</button>`;
+ document.getElementById('pauses'+n).appendChild(d);
+ d.querySelectorAll('input').forEach(x=>x.addEventListener('input',updatePreview));updatePreview()
 }
-function showDayActivities(ds){
- const box=document.getElementById('dayActivities'); if(!box) return;
- const arr=db.activities.filter(a=>a.date===ds).sort((a,b)=>a.start.localeCompare(b.start));
- box.innerHTML=arr.length ? '<b>Activiteiten op '+new Date(ds+'T12:00').toLocaleDateString('nl-NL')+':</b>'+arr.map(a=>`<div class=\"activity\"><span><span class=\"tag\">${types[a.type]}</span> ${a.start}–${a.end} · ${fmt(activityDuration(a))}</span><button class=\"small secondary\" onclick='edit(${JSON.stringify(a)})'>Bewerk</button></div>`).join('') : '';
+function getFormActivity(n){
+ return {type:document.getElementById('type'+n).value,start:document.getElementById('start'+n).value,end:document.getElementById('end'+n).value,
+ pauses:[...document.querySelectorAll('.ps'+n)].map((x,i)=>({start:x.value,end:document.querySelectorAll('.pe'+n)[i].value})).filter(p=>p.start&&p.end)}
+}
+function updatePreview(){
+ [1,2].forEach(n=>{let a=getFormActivity(n);document.getElementById('preview'+n).textContent=fmt(activityDuration(a))})
+}
+function toggleType(n){
+ let work=document.getElementById('type'+n).value==='work';
+ document.getElementById('pauseArea'+n).style.display=work?'block':'none';updatePreview()
+}
+function clearForm(){
+ editId=null;document.getElementById('type1').value='work';document.getElementById('start1').value='07:30';document.getElementById('end1').value='16:30';
+ document.getElementById('type2').value='';document.getElementById('start2').value='';document.getElementById('end2').value='';
+ document.getElementById('pauses1').innerHTML='';document.getElementById('pauses2').innerHTML='';addPause(1,'12:00','13:00');toggleType(1);toggleType(2)
+}
+function saveActivities(){
+ let ds=document.getElementById('date').value;if(!ds){alert('Vul een datum in.');return}
+ let forms=[getFormActivity(1),getFormActivity(2)];
+ if(!forms[0].start||!forms[0].end){alert('Vul schema 1 volledig in.');return}
+ if(forms[0].type==='work' && !forms[0].pauses.length){/* geen pauze is toegestaan */}
+ for(let i=0;i<2;i++){
+   let a=forms[i];
+   if(i===1 && !a.type) continue;
+   if(!a.start||!a.end){alert('Vul schema '+(i+1)+' volledig in, of kies "Niet gebruiken".');return}
+   let obj={id:crypto.randomUUID(),date:ds,type:a.type,start:a.start,end:a.end,pauses:a.type==='work'?a.pauses:[]};
+   if(i===0 && editId){let idx=db.activities.findIndex(x=>x.id===editId);if(idx>=0)obj.id=editId,db.activities[idx]=obj;else db.activities.push(obj)}
+   else db.activities.push(obj);
+ }
+ save();clearForm();render();
 }
 function autoFill(){
  let startDate=dateObj(db.settings.employment), today=new Date();today.setHours(0,0,0,0);
@@ -167,7 +201,14 @@ function planLeave(){
  let d=dateObj(f);while(d<=dateObj(t)){if(d.getDay()>=1&&d.getDay()<=4){let ds=iso(d);if(!db.planned.some(x=>x.date===ds))db.planned.push({id:crypto.randomUUID(),date:ds,start:'07:30',end:'16:30'})}d.setDate(d.getDate()+1)}save();render()
 }
 function saveSettings(){db.settings.weekly=+weekly.value;db.settings.annualLeave=+annualLeave.value;db.settings.q4Leave=+q4Leave.value;db.settings.employment=employment.value;save();render()}
-function edit(a){editId=a.id;date.value=a.date;type.value=a.type;start.value=a.start;end.value=a.end;document.getElementById('pauses').innerHTML='';(a.pauses||[]).forEach(p=>addPause(p.start,p.end));if(a.type==='work'&&!(a.pauses||[]).length)addPause();toggleType();scrollTo(0,0)}
+function edit(a){
+ editId=a.id;document.getElementById('date').value=a.date;document.getElementById('type1').value=a.type;
+ document.getElementById('start1').value=a.start;document.getElementById('end1').value=a.end;
+ document.getElementById('type2').value='';document.getElementById('start2').value='';document.getElementById('end2').value='';
+ document.getElementById('pauses1').innerHTML='';document.getElementById('pauses2').innerHTML='';
+ (a.pauses||[]).forEach(p=>addPause(1,p.start,p.end));if(a.type==='work'&&!(a.pauses||[]).length)addPause(1);
+ toggleType(1);toggleType(2);scrollTo(0,0)
+}
 function absenceDetails(t){
  let y=+yearSelect.value,arr=db.activities.filter(a=>inYear(a,y)&&a.type===t).sort((a,b)=>a.date.localeCompare(b.date));
  dialogTitle.textContent=types[t]+' — '+fmt(arr.reduce((s,a)=>s+activityDuration(a),0));
