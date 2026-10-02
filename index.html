@@ -59,7 +59,8 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 <div class="kpi">Totaal extra gewerkt<b id="totalExtra">0:00</b></div>
 <div class="kpi">Verlof basis<b id="baseLeave">0:00</b></div>
 <div class="kpi">Meegenomen vorig jaar<b id="carryLeave">0:00</b></div>
-<div class="kpi">Verlof beschikbaar<b id="available">0:00</b></div>
+<div class="kpi">Verlof totaal beschikbaar<b id="grossAvailable">0:00</b></div>
+<div class="kpi">Verlof beschikbaar na opgenomen<b id="available">0:00</b></div>
 <div class="kpi">Verlof opgenomen<b id="taken">0:00</b></div>
 <div class="kpi">Verlof gepland<b id="planned">0:00</b></div>
 <div class="kpi">Na gepland verlof<b id="remaining">0:00</b></div>
@@ -178,20 +179,22 @@ function yearStats(y){
   let carryMinutes=0;
   if(y>2026){
     let prev=yearStats(y-1);
-    carryMinutes=Math.max(0,prev.availableMinutes-prev.takenMinutes-prev.plannedMinutes);
+    carryMinutes=Math.max(0,prev.remainingMinutes);
   }
   let arr=db.activities.filter(a=>inYear(a,y));
   let takenMinutes=arr.filter(a=>a.type==='leave').reduce((sum,a)=>sum+activityDuration(a),0);
   let plannedMinutes=db.planned.filter(a=>a.date.startsWith(y+'-')).length*8*60;
-  let baseMinutes=baseHours*60, availableMinutes=baseMinutes+carryMinutes;
-  return {baseMinutes,carryMinutes,availableMinutes,takenMinutes,plannedMinutes,remainingMinutes:availableMinutes-takenMinutes-plannedMinutes};
+  let baseMinutes=baseHours*60, grossAvailableMinutes=baseMinutes+carryMinutes;
+  let availableMinutes=Math.max(0,grossAvailableMinutes-takenMinutes);
+  let remainingMinutes=Math.max(0,availableMinutes-plannedMinutes);
+  return {baseMinutes,carryMinutes,grossAvailableMinutes,availableMinutes,takenMinutes,plannedMinutes,remainingMinutes};
 }
 function render(){
  fillYears();let y=+yearSelect.value;document.getElementById('yearTitle').textContent=y;let arr=db.activities.filter(a=>inYear(a,y));
  let byDay={};arr.forEach(a=>(byDay[a.date]??=[]).push(a));let normal=0,fs=0;Object.entries(byDay).forEach(([ds,aa])=>{let m=dayWorkMinutes(aa),d=dow(ds);if([5,6].includes(d))fs+=m;else normal+=Math.max(0,m-target())});
  document.getElementById('ot').textContent=fmt(normal);document.getElementById('fs').textContent=fmt(fs);document.getElementById('totalExtra').textContent=fmt(normal+fs);
  let ys=yearStats(y);
- document.getElementById('baseLeave').textContent=fmt(ys.baseMinutes);document.getElementById('carryLeave').textContent=fmt(ys.carryMinutes);document.getElementById('available').textContent=fmt(ys.availableMinutes);document.getElementById('taken').textContent=fmt(ys.takenMinutes);document.getElementById('planned').textContent=fmt(ys.plannedMinutes);document.getElementById('remaining').textContent=fmt(ys.remainingMinutes);
+ document.getElementById('baseLeave').textContent=fmt(ys.baseMinutes);document.getElementById('carryLeave').textContent=fmt(ys.carryMinutes);document.getElementById('grossAvailable').textContent=fmt(ys.grossAvailableMinutes);document.getElementById('available').textContent=fmt(ys.availableMinutes);document.getElementById('taken').textContent=fmt(ys.takenMinutes);document.getElementById('planned').textContent=fmt(ys.plannedMinutes);document.getElementById('remaining').textContent=fmt(ys.remainingMinutes);
  renderAbsenceCards();renderWeeks(y);renderPlanned()
 }
 function renderWeeks(y){
