@@ -1,9 +1,9 @@
 {
-  "name": "Mijn Uren",
-  "short_name": "Mijn Uren",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#eef1f5",
-  "theme_color": "#172033",
-  "lang": "nl"
+  "name":"Mijn Uren",
+  "short_name":"Mijn Uren",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f3f4f6",
+  "theme_color":"#1f2937",
+  "lang":"nl"
 }

@@ -3,245 +3,191 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#172033">
+<meta name="theme-color" content="#1f2937">
 <link rel="manifest" href="manifest.json">
 <title>Mijn Uren</title>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#eef1f5;color:#172033}
-header{background:#172033;color:#fff;padding:22px 16px}header h1{margin:0;font-size:25px}header p{margin:5px 0 0;color:#cbd5e1}
-main{max-width:1000px;margin:auto;padding:15px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.card{background:#fff;border-radius:15px;padding:16px;box-shadow:0 2px 8px #0000000c;margin-bottom:14px}
-.kpi .label{font-size:13px;color:#64748b}.kpi .value{font-size:23px;font-weight:750;margin-top:5px}
-h2{font-size:19px;margin:0 0 13px}h3{margin:15px 0 8px;font-size:16px}
-.row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-label{display:block;font-size:13px;color:#475569;margin-bottom:5px}
-input,select,button{width:100%;font:inherit;padding:10px;border:1px solid #cbd5e1;border-radius:10px;background:#fff}
-button{background:#172033;color:#fff;border:0;cursor:pointer;font-weight:600}button.secondary{background:#64748b}button.danger{background:#b42318}button.link{background:#e2e8f0;color:#172033}
-table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:14px;vertical-align:top}
-.small{font-size:12px;color:#64748b}.good{color:#087443;font-weight:650}.bad{color:#b42318;font-weight:650}
-.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.summary div{background:#f8fafc;border-radius:10px;padding:12px}
-.hidden{display:none}.week{border:1px solid #e2e8f0;border-radius:12px;margin:10px 0;overflow:hidden}.week summary{cursor:pointer;padding:12px;background:#f8fafc;font-weight:700;list-style:none}.week summary::-webkit-details-marker{display:none}.week summary:before{content:'▶';font-size:11px;margin-right:8px}.week[open] summary:before{content:'▼'}.weekbody{padding:0 10px 10px}
-.badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#e2e8f0;font-size:12px;font-weight:650}.badge.open{background:#fef3c7}.badge.paid{background:#dcfce7}.badge.time{background:#dbeafe}
-.actions{display:flex;gap:6px}.actions button{width:auto;padding:6px 9px}
-@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.summary{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.row,.row3,.grid,.summary{grid-template-columns:1fr}.actions{flex-direction:column}.actions button{width:100%}th,td{font-size:12px;padding:7px}}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}
+header{background:#1f2937;color:white;padding:18px 16px}header h1{margin:0 0 4px;font-size:24px}.sub{opacity:.8}
+main{max-width:1000px;margin:auto;padding:14px}.card{background:white;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0001}
+h2{margin:0 0 12px;font-size:20px}h3{margin:0 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.kpi{border:1px solid #e5e7eb;border-radius:12px;padding:13px;background:#fafafa}.kpi b{font-size:22px;display:block;margin-top:4px}
+button,select,input{font:inherit}button{border:0;border-radius:9px;padding:10px 13px;background:#1f2937;color:#fff;cursor:pointer;margin:3px}button.secondary{background:#e5e7eb;color:#111827}
+button.small{padding:6px 9px;font-size:13px}.danger{background:#b91c1c}
+label{display:block;font-weight:bold;margin:8px 0 4px}input,select{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;background:white}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.muted{color:#6b7280;font-size:14px}
+.week{border:1px solid #dbe0e6;border-radius:12px;margin:9px 0;overflow:hidden}.weekhead{padding:12px;background:#f9fafb;cursor:pointer;font-weight:bold;display:flex;justify-content:space-between;gap:8px}.weekbody{padding:10px}.day{border-top:1px solid #eee;padding:9px 0}.activity{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;background:#f9fafb;border-radius:8px;margin:4px 0}.tag{font-size:12px;padding:3px 7px;border-radius:99px;background:#e5e7eb}
+dialog{border:0;border-radius:14px;width:min(600px,94vw);padding:0;box-shadow:0 10px 40px #0005}dialog::backdrop{background:#0006}.modal{padding:18px}.list button{float:right}
+details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
+.notice{padding:10px;border-radius:9px;background:#eff6ff;margin:8px 0}
 </style>
 </head>
 <body>
-<header><h1>Mijn Uren</h1><p>32 uur per week · maandag t/m donderdag · overuren blijven bewaard</p></header>
+<header><h1>Mijn Uren</h1><div class="sub">32 uur per week · maandag t/m donderdag</div></header>
 <main>
+<section class="card">
+<h2>Overzicht <span id="yearTitle"></span></h2>
 <div class="grid">
-<div class="card kpi"><div class="label">Normale overuren</div><div class="value" id="normalOpen">00:00</div><div class="small">openstaand · ma–do</div></div>
-<div class="card kpi"><div class="label">Vrijdag/zaterdag extra</div><div class="value" id="weekendOpen">00:00</div><div class="small">openstaand · vr/za</div></div>
-<div class="card kpi"><div class="label">Totaal openstaand</div><div class="value" id="totalOpen">00:00</div></div>
-<div class="card kpi"><div class="label">Gewerkte uren dit jaar</div><div class="value" id="workedYear">00:00</div></div>
-<div class="card kpi"><div class="label">Verlof nog over</div><div class="value" id="leaveRemaining">00:00</div><div class="small">na gepland verlof</div></div>
-<div class="card kpi"><div class="label">Gepland verlof</div><div class="value" id="leavePlanned">00:00</div><div class="small">toekomstig</div></div>
-</div>
-
-<section class="card">
-<h2>Registratie <span id="formMode" class="small"></span></h2>
-<div class="row3">
-<div><label>Datum</label><input id="date" type="date"></div>
-<div><label>Type</label><select id="type"><option value="work">Gewerkt</option><option value="leave">Verlof</option><option value="dentist">Tandarts</option><option value="doctor">Dokter</option><option value="child_sick">Kind ziek</option><option value="sick">Zelf ziek</option><option value="other">Overig</option></select></div>
-<div id="leaveBox"><label>Uren</label><input id="hours" type="number" value="8" min="0" step=".25"></div>
-</div>
-<div id="workBox" style="margin-top:10px">
-<div class="row3">
-<div><label>Start</label><input id="start" type="time" value="07:30"></div>
-<div><label>Einde</label><input id="end" type="time" value="16:30"></div>
-<div><label>Werkuren</label><input id="previewHours" value="08:00" disabled></div>
-</div>
-<div style="margin-top:10px"><label>Pauzes</label><div id="pauses"></div>
-<button type="button" class="secondary" style="margin-top:7px;width:auto;padding:8px 12px" onclick="addPause()">+ Pauze toevoegen</button>
-<p class="small">Laat een pauze weg als je hebt doorgewerkt. Die tijd telt dan als gewerkt.</p></div>
-<div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:10px">
-<label style="display:flex;align-items:center;gap:8px;margin:0;color:#172033">
-<input id="partialLeave" type="checkbox" style="width:auto">
-Rest van de werkdag vrij (verlof)
-</label>
-<div id="partialLeaveInfo" class="small" style="margin-top:5px">De app berekent automatisch hoeveel verlofuren er nog overblijven.</div>
-</div>
-</div>
-<div id="absenceBox" class="hidden" style="margin-top:10px">
-<div class="row3">
-<div><label>Van</label><input id="absenceStart" type="time" value="07:30"></div>
-<div><label>Tot</label><input id="absenceEnd" type="time" value="16:30"></div>
-<div><label>Afwezigheid</label><input id="absencePreview" value="08:00" disabled></div>
-</div>
-<p class="small" style="margin-top:7px">Vul altijd de werkelijke begin- en eindtijd van de afwezigheid in. Deze uren worden niet van je verlofsaldo afgetrokken, behalve bij type <b>Verlof</b>.</p>
-</div>
-<div id="statusBox" style="margin-top:10px" class="hidden"><label>Overwerkstatus</label><select id="status"><option value="open">Openstaand</option><option value="paid">Uitbetaald</option><option value="time">Tijd voor tijd</option></select><p class="small">De gewerkte uren blijven altijd bewaard. Alleen de status van het overwerk verandert.</p></div>
-<div class="actions" style="margin-top:12px"><button id="saveBtn" onclick="saveEntry()">Opslaan</button><button id="cancelBtn" class="secondary hidden" onclick="cancelEdit()">Annuleren</button></div>
-</section>
-
-<section class="card">
-<h2>Verlof plannen</h2>
-<p class="small">Vul een periode in. De app registreert automatisch alleen maandag t/m donderdag als verlof en rekent met het aantal uren dat je per dag invult. Bestaande registraties worden niet overschreven.</p>
-<div class="row3">
-<div><label>Van</label><input id="leaveFrom" type="date"></div>
-<div><label>Tot en met</label><input id="leaveTo" type="date"></div>
-<div><label>Verlofuren per werkdag</label><input id="leavePlanHours" type="number" value="8" min="0" step=".25"></div>
-</div>
-<div class="actions" style="margin-top:12px"><button onclick="planLeave()">Verlofperiode plannen</button></div>
-</section>
-
-<section class="card">
-<h2>Overwerkoverzicht</h2>
-<div class="summary">
-<div><div class="small">Normaal · openstaand</div><strong id="sNormalOpen">00:00</strong></div>
-<div><div class="small">Normaal · uitbetaald</div><strong id="sNormalPaid">00:00</strong></div>
-<div><div class="small">Normaal · tijd voor tijd</div><strong id="sNormalTime">00:00</strong></div>
-<div><div class="small">Vr/za · openstaand</div><strong id="sWeekendOpen">00:00</strong></div>
-<div><div class="small">Vr/za · uitbetaald</div><strong id="sWeekendPaid">00:00</strong></div>
-<div><div class="small">Vr/za · tijd voor tijd</div><strong id="sWeekendTime">00:00</strong></div>
-<div><div class="small">Totaal extra gewerkt</div><strong id="sTotalExtra">00:00</strong></div>
-<div><div class="small">Totaal verwerkt</div><strong id="sTotalProcessed">00:00</strong></div>
+<div class="kpi">Normale overuren (ma-do)<b id="ot">0:00</b></div>
+<div class="kpi">Vrijdag/zaterdag extra<b id="fs">0:00</b></div>
+<div class="kpi">Totaal extra gewerkt<b id="totalExtra">0:00</b></div>
+<div class="kpi">Verlof beschikbaar<b id="available">0:00</b></div>
+<div class="kpi">Verlof opgenomen<b id="taken">0:00</b></div>
+<div class="kpi">Verlof gepland<b id="planned">0:00</b></div>
+<div class="kpi">Na gepland verlof<b id="remaining">0:00</b></div>
 </div>
 </section>
 
 <section class="card">
 <h2>Afwezigheidsoverzicht</h2>
-<p class="small">Klik op een soort om de geregistreerde dagen en tijden te bekijken. Alleen verlof telt mee voor je verlofsaldo.</p>
-<div id="absenceSummary" class="summary"></div>
-<div id="absenceDetails" style="margin-top:12px"></div>
+<div class="grid" id="absenceCards"></div>
 </section>
 
 <section class="card">
-<h2>Jaarhistorie</h2>
+<h2>Registratie</h2>
 <div class="row">
-<div><label>Kies jaar</label><select id="yearSelect" onchange="renderYearHistory()"></select></div>
-<div><label>Jaaroverzicht</label><div id="yearSummary" class="small" style="padding:10px 0"></div></div>
+<div><label>Datum</label><input id="date" type="date"></div>
+<div><label>Type</label><select id="type">
+<option value="work">Gewerkt</option><option value="leave">Verlof</option>
+<option value="dentist">Tandarts</option><option value="doctor">Dokter</option>
+<option value="child_sick">Kind ziek</option><option value="self_sick">Zelf ziek</option><option value="other">Overig</option>
+</select></div>
+<div><label>Begin</label><input id="start" type="time"></div>
+<div><label>Einde</label><input id="end" type="time"></div>
+</div>
+<div id="pauseArea">
+<label>Pauzes bij gewerkt</label><div id="pauses"></div><button type="button" class="secondary" onclick="addPause()">+ Pauze toevoegen</button>
+</div>
+<div class="notice" id="preview">Duur: 0:00</div>
+<button onclick="saveActivity()">Opslaan</button>
+<button class="secondary" onclick="clearForm()">Leegmaken</button>
+<div class="muted">Je kunt meerdere activiteiten op dezelfde dag invoeren, bijvoorbeeld 4 uur werken + 2 uur tandarts + 2 uur verlof.</div>
+</section>
+
+<section class="card">
+<h2>Gepland verlof</h2>
+<div class="row">
+<div><label>Van</label><input id="leaveFrom" type="date"></div>
+<div><label>Tot en met</label><input id="leaveTo" type="date"></div>
+</div>
+<button onclick="planLeave()">Verlof plannen</button>
+<div id="plannedList"></div>
+</section>
+
+<section class="card">
+<h2>Registraties per week</h2>
+<div class="row">
+<div><label>Jaar</label><select id="yearSelect" onchange="render()"></select></div>
 </div>
 <div id="weeks"></div>
 </section>
 
 <section class="card">
 <h2>Instellingen</h2>
-<div class="row3">
-<div><label>Uren per week</label><input id="weekly" type="number" value="32" step=".5"></div>
-<div><label>Verlof per jaar</label><input id="annual" type="number" value="160" step="1"></div>
-<div><label>Verlof Q4 2026</label><input id="qLeave" type="number" value="40" step=".25"></div>
+<div class="row">
+<div><label>Uren per week</label><input id="weekly" type="number" value="32" step=".25"></div>
+<div><label>Jaarlijks verlof (uur)</label><input id="annualLeave" type="number" value="160" step=".25"></div>
+<div><label>Verlof Q4 bij start 1 oktober</label><input id="q4Leave" type="number" value="40" step=".25"></div>
+<div><label>Startdatum dienstverband</label><input id="employment" type="date" value="2026-10-01"></div>
 </div>
-<div class="row" style="margin-top:10px"><div><label>Werkdagen</label><input value="Maandag t/m donderdag" disabled></div><div><label>Startdatum werkgever</label><input id="startDate" type="date" value="2026-10-01"></div></div>
-<p class="small">Standaard: 07:30–16:30 met 1 uur pauze = 8 uur. Vanaf 22:00 vult de app ontbrekende maandag–donderdag automatisch aan. Vrijdag en zaterdag worden nooit automatisch ingevuld. Je kunt ze zelf registreren als extra uren. Verlof kun je hierboven ook alvast voor een hele periode plannen.</p>
-<div class="actions"><button onclick="settings()">Instellingen opslaan</button><button class="secondary" onclick="exportCSV()">Exporteer CSV</button></div>
+<button onclick="saveSettings()">Instellingen opslaan</button>
+<button class="secondary" onclick="exportData()">Back-up maken</button>
+<button class="secondary" onclick="document.getElementById('importFile').click()">Back-up terugzetten</button>
+<input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)">
 </section>
 </main>
-<script>
-const KEY='mijn-uren-v2';
-let d=JSON.parse(localStorage.getItem(KEY)||'{"entries":[],"weekly":32,"annual":160,"qLeave":40,"startDate":"2026-10-01"}');
-let editIndex=null;
-const $=id=>document.getElementById(id),pad=n=>String(n).padStart(2,'0');
-function fmt(m){let s=m<0?'-':'';m=Math.abs(Math.round(m));return s+pad(Math.floor(m/60))+':'+pad(m%60)}
-function localDate(){let x=new Date();return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())}
-function localTimeMinutes(){let x=new Date();return x.getHours()*60+x.getMinutes()}
-function dayNum(date){return new Date(date+'T12:00:00').getDay()}
-function workday(date){let x=dayNum(date);return x>=1&&x<=4}
-function weekendExtra(date){let x=dayNum(date);return x===5||x===6}
-function target(date){return workday(date)?d.weekly/4*60:0}
-function calcTime(a,b){if(!a||!b)return 0;let [h1,m1]=a.split(':').map(Number),[h2,m2]=b.split(':').map(Number);let x=h2*60+m2-(h1*60+m1);if(x<0)x+=1440;return x}
-function pauseMinutes(ps){return (ps||[]).reduce((s,p)=>s+calcTime(p.start,p.end),0)}
-function workMinutes(start,end,ps){return Math.max(0,calcTime(start,end)-pauseMinutes(ps))}
-function statusLabel(s){return s==='paid'?'Uitbetaald':s==='time'?'Tijd voor tijd':'Openstaand'}
-function statusClass(s){return s==='paid'?'paid':s==='time'?'time':'open'}
-function absenceLabel(t){return t==='leave'?'Verlof':t==='dentist'?'Tandarts':t==='doctor'?'Dokter':t==='child_sick'?'Kind ziek':t==='sick'?'Zelf ziek':'Overig'}
-function absenceTypes(){return ['leave','dentist','doctor','child_sick','sick','other']}
-function absenceMinutes(e){if(e.type==='work')return 0;if(e.start&&e.end)return Math.max(0,calcTime(e.start,e.end));return Number(e.minutes||0)}
-function ensureData(){d.entries=(d.entries||[]).map(e=>{if(e.status!=='paid'&&e.status!=='time'&&e.status!=='open')e.status='open';if(e.type==='work'&&typeof e.minutes!=='number'){e.minutes=workMinutes(e.start,e.end,e.pauses||[])}if(e.type==='work'&&typeof e.leaveMinutes!=='number')e.leaveMinutes=0;if(e.type==='work'&&typeof e.diff!=='number')e.diff=e.minutes-target(e.date);return e});d.weekly=Number(d.weekly)||32;d.annual=Number(d.annual)||160;d.qLeave=Number(d.qLeave)||40;d.startDate=d.startDate||'2026-10-01'}
-function save(){ensureData();localStorage.setItem(KEY,JSON.stringify(d))}
-function nextDate(date){let x=new Date(date+'T12:00:00');x.setDate(x.getDate()+1);return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())}
-function autoFillDefaults(){let today=localDate(),start=d.startDate||'2026-10-01';for(let dt=start;dt<=today;dt=nextDate(dt)){if(!workday(dt))continue;if(d.entries.some(e=>e.date===dt))continue;if(dt===today&&localTimeMinutes()<1320)continue;d.entries.push({date:dt,type:'work',minutes:480,diff:0,start:'07:30',end:'16:30',pauses:[{start:'12:00',end:'13:00'}],auto:true,status:'open'})}save()}
-function addPause(start='12:00',end='13:00'){let row=document.createElement('div');row.className='pauseRow';row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:7px;margin-bottom:7px;align-items:end';row.innerHTML=`<div><label>Van</label><input class="pauseStart" type="time" value="${start}"></div><div><label>Tot</label><input class="pauseEnd" type="time" value="${end}"></div><button type="button" class="danger" style="width:auto;padding:10px 12px">×</button>`;row.querySelector('button').onclick=()=>{row.remove();updatePreview()};row.querySelectorAll('input').forEach(i=>i.oninput=updatePreview);$('pauses').appendChild(row);updatePreview()}
-function clearPauses(){$('pauses').innerHTML=''}
-function getPauses(){return [...document.querySelectorAll('.pauseRow')].map(r=>({start:r.querySelector('.pauseStart').value,end:r.querySelector('.pauseEnd').value})).filter(p=>p.start&&p.end)}
-function updatePreview(){$('previewHours').value=fmt(workMinutes($('start').value,$('end').value,getPauses()))}
-function resetWorkDefaults(){ $('start').value='07:30';$('end').value='16:30';clearPauses();addPause();updatePreview() }
-function setFormForEdit(e,i){editIndex=i;$('formMode').textContent='· bewerken';$('saveBtn').textContent='Wijziging opslaan';$('cancelBtn').classList.remove('hidden');$('date').value=e.date;$('type').value=e.type;$('hours').value=(e.minutes/60).toFixed(2).replace(/\.00$/,'');$('start').value=e.start||'07:30';$('end').value=e.end||'16:30';$('absenceStart').value=e.start||'07:30';$('absenceEnd').value=e.end||'16:30';clearPauses();(e.pauses||[]).forEach(p=>addPause(p.start,p.end));$('partialLeave').checked=Number(e.leaveMinutes||0)>0;$('status').value=e.status||'open';toggleType();updatePartialLeave();updateStatusBox();updateAbsencePreview()}
-function cancelEdit(){editIndex=null;$('formMode').textContent='';$('saveBtn').textContent='Opslaan';$('cancelBtn').classList.add('hidden');$('date').value=localDate();$('type').value='work';$('hours').value=8;$('partialLeave').checked=false;$('absenceStart').value='07:30';$('absenceEnd').value='16:30';resetWorkDefaults();toggleType();updatePartialLeave();updateStatusBox();updateAbsencePreview()}
-function toggleType(){let t=$('type').value,work=t==='work';$('workBox').classList.toggle('hidden',!work);$('leaveBox').classList.toggle('hidden',work);$('absenceBox').classList.toggle('hidden',work);updatePartialLeave();updateStatusBox();updateAbsencePreview()}
-function updatePartialLeave(){let show=$('type').value==='work'&&workday($('date').value);$('partialLeave').disabled=!show;if(!show)$('partialLeave').checked=false;let mins=show?workMinutes($('start').value,$('end').value,getPauses()):0,need=show?Math.max(0,target($('date').value)-mins):0;$('partialLeaveInfo').textContent=need>0?`Bij deze tijden is ${fmt(need)} verlof nodig om de normale werkdag van ${fmt(target($('date').value))} uur te vullen.`:(show?'Je hebt de normale werkdag al gehaald; er wordt geen verlof afgetrokken.':'Verlof voor de resterende werkdag is alleen van toepassing op maandag t/m donderdag.');}
-function updateStatusBox(){let show=$('type').value==='work';$('statusBox').classList.toggle('hidden',!show);if(show){let mins=workMinutes($('start').value,$('end').value,getPauses()),extra=weekendExtra($('date').value)?mins:Math.max(0,mins-target($('date').value));$('statusBox').classList.toggle('hidden',extra<=0)}}
-function updateAbsencePreview(){$('absencePreview').value=fmt(Math.max(0,calcTime($('absenceStart').value,$('absenceEnd').value)))}
-function saveEntry(){let date=$('date').value;if(!date)return alert('Kies een datum.');let type=$('type').value,entry={date,type,minutes:0,diff:0};if(type==='work'){let ps=getPauses(),mins=workMinutes($('start').value,$('end').value,ps),leaveMinutes=($('partialLeave').checked&&workday(date))?Math.max(0,target(date)-mins):0;entry.minutes=mins;entry.leaveMinutes=leaveMinutes;entry.diff=mins-target(date);entry.start=$('start').value;entry.end=$('end').value;entry.pauses=ps;entry.status=$('status').value||'open'}else{let st=$('absenceStart').value,en=$('absenceEnd').value;if(!st||!en)return alert('Vul een begin- en eindtijd in.');entry.start=st;entry.end=en;entry.minutes=absenceMinutes(entry);entry.leaveMinutes=0;entry.diff=0;entry.status='open'}if(editIndex!==null){d.entries[editIndex]=entry}else{let existing=d.entries.findIndex(e=>e.date===date&&e.auto);if(existing>=0)d.entries.splice(existing,1);let duplicate=d.entries.findIndex(e=>e.date===date);if(duplicate>=0){if(!confirm('Er bestaat al een registratie voor deze datum. Wil je die vervangen?'))return;d.entries[duplicate]=entry}else d.entries.push(entry)}save();cancelEdit();renderAll()}
-function edit(i){setFormForEdit(d.entries[i],i);window.scrollTo({top:0,behavior:'smooth'})}
-function overtimeParts(e){if(e.type!=='work')return {kind:'none',mins:0};if(weekendExtra(e.date))return {kind:'weekend',mins:Math.max(0,e.minutes)};return {kind:'normal',mins:Math.max(0,e.minutes-target(e.date))}}
-function aggregate(entries){let r={normal:{open:0,paid:0,time:0},weekend:{open:0,paid:0,time:0}};entries.forEach(e=>{let p=overtimeParts(e);if(p.mins>0){let s=e.status||'open';if(!r[p.kind][s])r[p.kind][s]=0;r[p.kind][s]+=p.mins}});return r}
 
-function leaveEntitlement(year){return year===2026?d.qLeave:d.annual}
-function leaveSummary(year){
-  let today=localDate(), all=d.entries.filter(e=>e.date.startsWith(year+'-'));
-  let taken=all.filter(e=>e.date<=today).reduce((s,e)=>s+(e.type==='leave'?e.minutes:(e.type==='work'?Number(e.leaveMinutes||0):0)),0);
-  let planned=all.filter(e=>e.date>today).reduce((s,e)=>s+(e.type==='leave'?e.minutes:(e.type==='work'?Number(e.leaveMinutes||0):0)),0);
-  let entitlement=leaveEntitlement(year);
-  return {entitlement:entitlement*60,taken,planned,remaining:entitlement*60-taken-planned};
+<dialog id="absenceDialog"><div class="modal"><h2 id="dialogTitle"></h2><div id="dialogBody"></div><button onclick="absenceDialog.close()">Sluiten</button></div></dialog>
+
+<script>
+const KEY='mijn-uren-v4';
+const types={work:'Gewerkt',leave:'Verlof',dentist:'Tandarts',doctor:'Dokter',child_sick:'Kind ziek',self_sick:'Zelf ziek',other:'Overig'};
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{activities:[],planned:[],settings:{weekly:32,annualLeave:160,q4Leave:40,employment:'2026-10-01'}};
+let editId=null;
+
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function mins(t){if(!t)return 0;let [h,m]=t.split(':').map(Number);return h*60+m}
+function fmt(n){n=Math.max(0,Math.round(n));let h=Math.floor(n/60),m=n%60;return `${h}:${String(m).padStart(2,'0')}`}
+function dateObj(s){return new Date(s+'T12:00:00')}
+function iso(d){return d.toISOString().slice(0,10)}
+function dow(s){return dateObj(s).getDay()}
+function week(s){let d=dateObj(s), th=new Date(d); th.setDate(d.getDate()+(4-(d.getDay()||7))); let y=th.getFullYear(); let jan=new Date(y,0,1); return Math.ceil((((th-jan)/86400000)+1)/7)}
+function activityDuration(a){return Math.max(0,mins(a.end)-mins(a.start)-((a.type==='work')?(a.pauses||[]).reduce((x,p)=>x+Math.max(0,mins(p.end)-mins(p.start)),0):0))}
+function inYear(a,y){return a.date.startsWith(y+'-')}
+function target(){return Number(db.settings.weekly||32)*60/4}
+
+function init(){
+ document.getElementById('weekly').value=db.settings.weekly;document.getElementById('annualLeave').value=db.settings.annualLeave;
+ document.getElementById('q4Leave').value=db.settings.q4Leave;document.getElementById('employment').value=db.settings.employment;
+ let today=new Date();document.getElementById('date').value=iso(today);
+ document.getElementById('start').value='07:30';document.getElementById('end').value='16:30';addPause('12:00','13:00');
+ fillYears();autoFill();render();toggleType();
+ ['start','end'].forEach(x=>document.getElementById(x).addEventListener('input',updatePreview));
+ document.getElementById('type').addEventListener('change',toggleType);
+}
+function fillYears(){
+ let years=new Set([new Date().getFullYear(),2026]);db.activities.forEach(a=>years.add(+a.date.slice(0,4)));db.planned.forEach(a=>years.add(+a.date.slice(0,4)));
+ let s=document.getElementById('yearSelect'),old=s.value||new Date().getFullYear();s.innerHTML=[...years].sort().map(y=>`<option>${y}</option>`).join('');s.value=years.has(+old)?old:Math.max(...years);
+}
+function addPause(st='',en=''){let d=document.createElement('div');d.className='row pause';d.innerHTML=`<div><input type="time" class="ps" value="${st}"></div><div><input type="time" class="pe" value="${en}"></div><button type="button" class="secondary small" onclick="this.parentElement.remove();updatePreview()">Verwijder</button>`;document.getElementById('pauses').appendChild(d);d.querySelectorAll('input').forEach(x=>x.addEventListener('input',updatePreview));updatePreview()}
+function updatePreview(){let a={type:document.getElementById('type').value,start:document.getElementById('start').value,end:document.getElementById('end').value,pauses:[...document.querySelectorAll('.pause')].map(p=>({start:p.querySelector('.ps').value,end:p.querySelector('.pe').value}))};document.getElementById('preview').textContent='Duur: '+fmt(activityDuration(a))}
+function toggleType(){let work=document.getElementById('type').value==='work';document.getElementById('pauseArea').style.display=work?'block':'none';updatePreview()}
+function clearForm(){editId=null;document.getElementById('start').value='07:30';document.getElementById('end').value='16:30';document.getElementById('type').value='work';document.getElementById('pauses').innerHTML='';addPause('12:00','13:00');toggleType()}
+function saveActivity(){
+ let a={id:editId||crypto.randomUUID(),date:date.value,type:type.value,start:start.value,end:end.value,pauses:[]};
+ if(!a.date||!a.start||!a.end){alert('Vul datum, begin en einde in.');return}
+ if(a.type==='work')a.pauses=[...document.querySelectorAll('.pause')].map(p=>({start:p.querySelector('.ps').value,end:p.querySelector('.pe').value})).filter(p=>p.start&&p.end);
+ let old=db.activities.findIndex(x=>x.id===a.id);if(old>=0)db.activities[old]=a;else db.activities.push(a);
+ save();editId=null;clearForm();render();
+}
+function autoFill(){
+ let startDate=dateObj(db.settings.employment), today=new Date();today.setHours(0,0,0,0);
+ let d=new Date(startDate);
+ while(d<=today){let ds=iso(d), existing=db.activities.some(a=>a.date===ds); if(d.getDay()>=1&&d.getDay()<=4&&!existing){let after22=new Date(d);after22.setHours(22,0,0,0);if(new Date()>after22)db.activities.push({id:crypto.randomUUID(),date:ds,type:'work',start:'07:30',end:'16:30',pauses:[{start:'12:00',end:'13:00'}],auto:true})}d.setDate(d.getDate()+1)}save()
 }
 function planLeave(){
-  let from=$('leaveFrom').value,to=$('leaveTo').value,hours=Number($('leavePlanHours').value||0);
-  if(!from||!to)return alert('Kies een begin- en einddatum.');
-  if(to<from)return alert('De einddatum moet op of na de begindatum liggen.');
-  if(hours<=0)return alert('Vul het aantal verlofuren per werkdag in.');
-  let added=0,skipped=0;
-  for(let dt=from;dt<=to;dt=nextDate(dt)){
-    if(!workday(dt))continue;
-    if(d.entries.some(e=>e.date===dt)){skipped++;continue;}
-    d.entries.push({date:dt,type:'leave',minutes:Math.round(hours*60),planned:dt>localDate()});
-    added++;
-  }
-  save();renderAll();
-  alert(`${added} verlofdag(en) gepland (${fmt(added*Math.round(hours*60))}).${skipped?` ${skipped} dag(en) overgeslagen omdat daar al een registratie stond.`:''}`);
+ let f=leaveFrom.value,t=leaveTo.value;if(!f||!t||f>t){alert('Kies een geldige periode.');return}
+ let d=dateObj(f);while(d<=dateObj(t)){if(d.getDay()>=1&&d.getDay()<=4){let ds=iso(d);if(!db.planned.some(x=>x.date===ds))db.planned.push({id:crypto.randomUUID(),date:ds,start:'07:30',end:'16:30'})}d.setDate(d.getDate()+1)}save();render()
 }
-
-function renderDashboard(){
-  let year=new Date().getFullYear(),entries=d.entries.filter(e=>e.date.startsWith(year+'-')),a=aggregate(entries);
-  let normalOpen=a.normal.open,weekendOpen=a.weekend.open;
-  let worked=entries.filter(e=>e.type==='work').reduce((s,e)=>s+e.minutes,0);
-  let lv=leaveSummary(year);
-  $('normalOpen').textContent=fmt(normalOpen);
-  $('weekendOpen').textContent=fmt(weekendOpen);
-  $('totalOpen').textContent=fmt(normalOpen+weekendOpen);
-  $('workedYear').textContent=fmt(worked);
-  $('leaveRemaining').textContent=fmt(lv.remaining);
-  $('leavePlanned').textContent=fmt(lv.planned);
-  $('sNormalOpen').textContent=fmt(a.normal.open);
-  $('sNormalPaid').textContent=fmt(a.normal.paid);
-  $('sNormalTime').textContent=fmt(a.normal.time);
-  $('sWeekendOpen').textContent=fmt(a.weekend.open);
-  $('sWeekendPaid').textContent=fmt(a.weekend.paid);
-  $('sWeekendTime').textContent=fmt(a.weekend.time);
-  let total=a.normal.open+a.normal.paid+a.normal.time+a.weekend.open+a.weekend.paid+a.weekend.time;
-  $('sTotalExtra').textContent=fmt(total);
-  $('sTotalProcessed').textContent=fmt(total-a.normal.open-a.weekend.open);
+function saveSettings(){db.settings.weekly=+weekly.value;db.settings.annualLeave=+annualLeave.value;db.settings.q4Leave=+q4Leave.value;db.settings.employment=employment.value;save();render()}
+function edit(a){editId=a.id;date.value=a.date;type.value=a.type;start.value=a.start;end.value=a.end;document.getElementById('pauses').innerHTML='';(a.pauses||[]).forEach(p=>addPause(p.start,p.end));if(a.type==='work'&&!(a.pauses||[]).length)addPause();toggleType();scrollTo(0,0)}
+function absenceDetails(t){
+ let y=+yearSelect.value,arr=db.activities.filter(a=>inYear(a,y)&&a.type===t).sort((a,b)=>a.date.localeCompare(b.date));
+ dialogTitle.textContent=types[t]+' — '+fmt(arr.reduce((s,a)=>s+activityDuration(a),0));
+ dialogBody.innerHTML=arr.length?arr.map(a=>`<div class="activity"><span>${new Date(a.date+'T12:00').toLocaleDateString('nl-NL')} · ${a.start}–${a.end}</span><b>${fmt(activityDuration(a))}</b></div>`).join(''):'<p>Geen registraties in dit jaar.</p>';
+ absenceDialog.showModal()
 }
-function isoWeek(date){let x=new Date(date+'T12:00:00');let day=(x.getDay()+6)%7;x.setDate(x.getDate()-day+3);let first=new Date(x.getFullYear(),0,4);let week=1+Math.round(((x-first)/86400000-3+(first.getDay()+6)%7)/7);return week}
-function dayName(date){return ['zo','ma','di','wo','do','vr','za'][dayNum(date)]}
-function renderYearOptions(){let years=new Set([2026,new Date().getFullYear(),...d.entries.map(e=>Number(e.date.slice(0,4)))].filter(Boolean));let current=$('yearSelect').value||String(new Date().getFullYear());$('yearSelect').innerHTML=[...years].sort((a,b)=>b-a).map(y=>`<option value="${y}">${y}</option>`).join('');if([...years].map(String).includes(current))$('yearSelect').value=current}
-function renderYearHistory(){
-  let year=Number($('yearSelect').value||new Date().getFullYear());
-  let es=d.entries.filter(e=>e.date.startsWith(year+'-')).sort((a,b)=>b.date.localeCompare(a.date));
-  let worked=es.filter(e=>e.type==='work').reduce((s,e)=>s+e.minutes,0),lv=leaveSummary(year),a=aggregate(es);
-  let extra=a.normal.open+a.normal.paid+a.normal.time+a.weekend.open+a.weekend.paid+a.weekend.time;
-  let open=a.normal.open+a.weekend.open;
-  $('yearSummary').innerHTML=`Gewerkt <b>${fmt(worked)}</b> · Verlof opgenomen <b>${fmt(lv.taken)}</b> · Verlof gepland <b>${fmt(lv.planned)}</b> · Nog over na planning <b>${fmt(lv.remaining)}</b> · Extra gewerkt <b>${fmt(extra)}</b> · Openstaand <b>${fmt(open)}</b>`;
-  let groups={};
-  es.forEach(e=>{let w=isoWeek(e.date);(groups[w]??=[]).push(e)});
-  $('weeks').innerHTML=Object.keys(groups).sort((a,b)=>b-a).map(w=>{
-    let arr=groups[w],wk=arr.filter(e=>e.type==='work').reduce((s,e)=>s+e.minutes,0),pa=aggregate(arr);
-    let normal=pa.normal.open+pa.normal.paid+pa.normal.time,weekend=pa.weekend.open+pa.weekend.paid+pa.weekend.time;
-    return `<details class="week"><summary>Week ${w} <span class="small">· ${fmt(wk)} gewerkt · normaal +${fmt(normal)} · vr/za +${fmt(weekend)}</span></summary><div class="weekbody"><table><thead><tr><th>Datum</th><th>Type</th><th>Tijden</th><th>Uren</th><th>Overwerk</th><th>Status</th><th></th></tr></thead><tbody>${arr.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>{
-      let p=overtimeParts(e),ot=p.mins,otLabel=ot?fmt(ot):'-',status=ot?`<span class="badge ${statusClass(e.status)}">${statusLabel(e.status)}</span>`:'-';
-      let times=(e.start&&e.end)?`${e.start}–${e.end}`:'-';
-      let typeLabel=e.type==='work'?(e.leaveMinutes>0?`Gewerkt + verlof ${fmt(e.leaveMinutes)}`:'Gewerkt'):absenceLabel(e.type);
-      return `<tr><td>${dayName(e.date)} ${e.date}</td><td>${typeLabel}${e.type==='leave'&&e.date>localDate()?' <span class="badge">Gepland</span>':''}</td><td>${times}${e.type==='work'&&(e.pauses||[]).length?`<br><span class="small">pauze ${(e.pauses||[]).map(p=>p.start+'–'+p.end).join(', ')}</span>`:''}</td><td>${fmt(e.minutes)}</td><td>${otLabel}${p.kind==='weekend'&&ot?' <span class="small">vr/za</span>':''}</td><td>${status}</td><td><button class="link" onclick="edit(${d.entries.indexOf(e)})">Bewerk</button></td></tr>`;
-    }).join('')}</tbody></table></div></details>`;
-  }).join('')||'<p class="small">Nog geen registraties in dit jaar.</p>';
+function renderAbsenceCards(){
+ let box=document.getElementById('absenceCards'),y=+yearSelect.value;
+ box.innerHTML=['leave','dentist','doctor','child_sick','self_sick','other'].map(t=>{let n=db.activities.filter(a=>inYear(a,y)&&a.type===t).reduce((s,a)=>s+activityDuration(a),0);return `<div class="kpi" onclick="absenceDetails('${t}')" style="cursor:pointer">${types[t]}<b>${fmt(n)}</b><span class="muted">klik voor datums</span></div>`}).join('')
 }
-function renderAbsenceSummary(){let year=new Date().getFullYear(),es=d.entries.filter(e=>e.date.startsWith(year+'-'));let labels={leave:'Verlof',dentist:'Tandarts',doctor:'Dokter',child_sick:'Kind ziek',sick:'Zelf ziek',other:'Overig'},html='';absenceTypes().forEach(t=>{let arr=es.filter(e=>e.type===t);let mins=arr.reduce((s,e)=>s+absenceMinutes(e),0);html+=`<button class="secondary absenceBtn" onclick="toggleAbsenceDetails('${t}')"><b>${labels[t]}</b><br><span>${fmt(mins)}</span></button>`});$('absenceSummary').innerHTML=html;$('absenceDetails').innerHTML=''}
-function toggleAbsenceDetails(type){let year=new Date().getFullYear(),arr=d.entries.filter(e=>e.date.startsWith(year+'-')&&e.type===type).sort((a,b)=>a.date.localeCompare(b.date));if(!arr.length){$('absenceDetails').innerHTML=`<div class="small">Nog geen registraties voor ${absenceLabel(type).toLowerCase()}.</div>`;return}let total=arr.reduce((s,e)=>s+absenceMinutes(e),0);$('absenceDetails').innerHTML=`<div class="card" style="margin:0"><h3 style="margin-top:0">${absenceLabel(type)} · ${fmt(total)}</h3>${arr.map(e=>`<div style="display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding:8px 0"><span>${dayName(e.date)} ${e.date}</span><b>${e.start&&e.end?e.start+'–'+e.end:fmt(absenceMinutes(e))}</b></div>`).join('')}</div>`}
-function renderAll(){ensureData();renderDashboard();renderYearOptions();renderYearHistory();renderAbsenceSummary();$('weekly').value=d.weekly;$('annual').value=d.annual;$('qLeave').value=d.qLeave;$('startDate').value=d.startDate}
-function settings(){d.weekly=Number($('weekly').value)||32;d.annual=Number($('annual').value)||160;d.qLeave=Number($('qLeave').value)||40;d.startDate=$('startDate').value||'2026-10-01';save();renderAll();alert('Instellingen opgeslagen.')}
-function exportCSV(){let rows=[['Datum','Type','Start','Einde','Pauzes','Uren','Verlof','Minuten','Overwerk','Categorie','Status']];d.entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{let p=overtimeParts(e);rows.push([e.date,e.type,e.start||'',e.end||'',(e.pauses||[]).map(p=>p.start+'-'+p.end).join(', '),fmt(e.minutes),e.leaveMinutes?fmt(e.leaveMinutes):'',e.minutes,p.mins?fmt(p.mins):'',p.kind,statusLabel(e.status)])});let csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(';')).join('\n');let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mijn-uren.csv';a.click();URL.revokeObjectURL(a.href)}
-$('type').onchange=toggleType;$('date').oninput=()=>{updatePartialLeave();updateStatusBox()};$('start').oninput=()=>{updatePreview();updatePartialLeave();updateStatusBox()};$('end').oninput=()=>{updatePreview();updatePartialLeave();updateStatusBox()};$('partialLeave').onchange=updatePartialLeave;$('absenceStart').oninput=updateAbsencePreview;$('absenceEnd').oninput=updateAbsencePreview;
-$('date').value=localDate();$('leaveFrom').value=localDate();$('leaveTo').value=localDate();ensureData();$('partialLeave').checked=false;resetWorkDefaults();updatePartialLeave();updateAbsencePreview();autoFillDefaults();renderAll();setInterval(()=>{autoFillDefaults();renderAll()},30000);if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+function render(){
+ fillYears();let y=+yearSelect.value;document.getElementById('yearTitle').textContent=y;
+ let arr=db.activities.filter(a=>inYear(a,y)),work=arr.filter(a=>a.type==='work');
+ let normal=0,fs=0;work.forEach(a=>{let m=activityDuration(a),d=dow(a.date);if(d===5||d===6)fs+=m;else normal+=m-target()});normal=Math.max(0,normal);
+ document.getElementById('ot').textContent=fmt(normal);document.getElementById('fs').textContent=fmt(fs);document.getElementById('totalExtra').textContent=fmt(normal+fs);
+ let available=+db.settings.annualLeave;if(y===2026&&db.settings.employment==='2026-10-01')available=+db.settings.q4Leave;
+ let taken=arr.filter(a=>a.type==='leave').reduce((s,a)=>s+activityDuration(a),0);
+ let planned=db.planned.filter(a=>a.date.startsWith(y+'-')&&a.date>=iso(new Date())).reduce((s,a)=>s+Math.max(0,mins(a.end)-mins(a.start)),0);
+ document.getElementById('available').textContent=fmt(available);document.getElementById('taken').textContent=fmt(taken);document.getElementById('planned').textContent=fmt(planned);document.getElementById('remaining').textContent=fmt(available-taken-planned);
+ renderAbsenceCards();renderWeeks(y);renderPlanned()
+}
+function renderWeeks(y){
+ let arr=db.activities.filter(a=>inYear(a,y)).sort((a,b)=>a.date.localeCompare(b.date)),map={};
+ arr.forEach(a=>(map[week(a.date)]??=[]).push(a));
+ let box=document.getElementById('weeks');box.innerHTML='';
+ Object.keys(map).sort((a,b)=>b-a).forEach(w=>{let acts=map[w],work=acts.filter(a=>a.type==='work'),ot=0,fs=0;work.forEach(a=>{let m=activityDuration(a);if([5,6].includes(dow(a.date)))fs+=m;else ot+=Math.max(0,m-target())});
+ let days={};acts.forEach(a=>(days[a.date]??=[]).push(a));
+ let body=Object.entries(days).map(([ds,aa])=>`<div class="day"><b>${new Date(ds+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})}</b>${aa.map(a=>`<div class="activity"><span><span class="tag">${types[a.type]}</span> ${a.start}–${a.end} · ${fmt(activityDuration(a))}${a.auto?' · automatisch':''}</span><button class="small secondary" onclick='edit(${JSON.stringify(a)})'>Bewerk</button></div>`).join('')}</div>`).join('');
+ let d=document.createElement('div');d.className='week';d.innerHTML=`<div class="weekhead" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden"><span>Week ${w}</span><span>${fmt(work.reduce((s,a)=>s+activityDuration(a),0))} gewerkt · ${fmt(ot)} normaal extra · ${fmt(fs)} vr/za</span></div><div class="weekbody">${body}</div>`;box.appendChild(d)
+ })
+}
+function renderPlanned(){let y=+yearSelect.value,a=db.planned.filter(x=>x.date.startsWith(y+'-')).sort((x,y)=>x.date.localeCompare(y.date));document.getElementById('plannedList').innerHTML=a.length?'<h3>Gepland</h3>'+a.map(x=>`<div class="activity">${new Date(x.date+'T12:00').toLocaleDateString('nl-NL')} · ${x.start}–${x.end} · ${fmt(mins(x.end)-mins(x.start))}</div>`).join(''):'<div class="muted">Nog geen gepland verlof.</div>'}
+function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mijn-uren-backup.json';a.click();URL.revokeObjectURL(a.href)}
+function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();init();alert('Back-up teruggezet.')}catch(x){alert('Dit bestand is geen geldige back-up.')}};r.readAsText(f)}
+init();
+setInterval(()=>{autoFill();render()},30000);
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
 </script>
 </body></html>
