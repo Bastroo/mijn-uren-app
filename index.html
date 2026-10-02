@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1f2937">
 <link rel="manifest" href="manifest.json">
-<title>Mijn Uren v4.5</title>
+<title>Mijn Uren v4.6</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}
 header{background:#1f2937;color:white;padding:18px 16px}header h1{margin:0 0 4px;font-size:24px}.sub{opacity:.8}
@@ -154,6 +154,7 @@ function planLeave(){
 function editDay(date){document.getElementById('date').value=date;loadDay();window.scrollTo({top:0,behavior:'smooth'})}
 function editPlanned(id){let x=db.planned.find(p=>p.id===id);if(!x)return;editingPlannedId=id;leaveFrom.value=x.date;leaveTo.value=x.date;document.getElementById('plannedSaveBtn').textContent='Gepland verlof aanpassen';window.scrollTo({top:document.getElementById('leaveFrom').getBoundingClientRect().top+scrollY-100,behavior:'smooth'});}
 function savePlannedEdit(){if(!editingPlannedId){planLeave();return}let f=leaveFrom.value;if(!f){alert('Kies een datum.');return}let x=db.planned.find(p=>p.id===editingPlannedId);if(!x)return;x.date=f;x.start='07:30';x.end='16:30';save();editingPlannedId=null;document.getElementById('plannedSaveBtn').textContent='Verlof plannen';render()}
+function deletePlanned(id){let x=db.planned.find(p=>p.id===id);if(!x)return;if(!confirm('Gepland verlof op '+new Date(x.date+'T12:00').toLocaleDateString('nl-NL')+' verwijderen?'))return;db.planned=db.planned.filter(p=>p.id!==id);save();if(editingPlannedId===id){editingPlannedId=null;document.getElementById('plannedSaveBtn').textContent='Verlof plannen';leaveFrom.value='';leaveTo.value=''}render()}
 function saveSettings(){db.settings.weekly=+weekly.value;db.settings.annualLeave=+annualLeave.value;db.settings.q4Leave=+q4Leave.value;db.settings.employment=employment.value;save();render()}
 function edit(a){editDay(a.date)}
 function absenceDetails(t){let y=+yearSelect.value,arr=db.activities.filter(a=>inYear(a,y)&&a.type===t).sort((a,b)=>a.date.localeCompare(b.date));dialogTitle.textContent=types[t]+' — '+fmt(arr.reduce((s,a)=>s+activityDuration(a),0));dialogBody.innerHTML=arr.length?arr.map(a=>`<div class="activity"><span>${new Date(a.date+'T12:00').toLocaleDateString('nl-NL')} · ${a.start}–${a.end}</span><b>${fmt(activityDuration(a))}</b></div>`).join(''):'<p>Geen registraties in dit jaar.</p>';absenceDialog.showModal()}
@@ -165,8 +166,10 @@ function render(){
  document.getElementById('ot').textContent=fmt(normal);document.getElementById('fs').textContent=fmt(fs);document.getElementById('totalExtra').textContent=fmt(normal+fs);
  let available=+db.settings.annualLeave;if(y===2026&&db.settings.employment==='2026-10-01')available=+db.settings.q4Leave;
  let taken=arr.filter(a=>a.type==='leave').reduce((s,a)=>s+activityDuration(a),0);
- let today=iso(new Date()),planned=db.planned.filter(a=>a.date.startsWith(y+'-')&&a.date>=today).reduce((s,a)=>s+8*60,0);
- document.getElementById('available').textContent=fmt(available);document.getElementById('taken').textContent=fmt(taken);document.getElementById('planned').textContent=fmt(planned);document.getElementById('remaining').textContent=fmt(available-taken-planned);
+ let today=iso(new Date());
+ let planned=db.planned.filter(a=>a.date.startsWith(y+'-')&&a.date>=today).reduce((s,a)=>s+480,0);
+ let remaining=available-taken-planned;
+ document.getElementById('available').textContent=fmt(available);document.getElementById('taken').textContent=fmt(taken);document.getElementById('planned').textContent=fmt(planned);document.getElementById('remaining').textContent=fmt(remaining);
  renderAbsenceCards();renderWeeks(y);renderPlanned()
 }
 function renderWeeks(y){
@@ -174,7 +177,7 @@ function renderWeeks(y){
  Object.keys(map).sort((a,b)=>b-a).forEach(w=>{let acts=map[w],days={};acts.forEach(a=>(days[a.date]??=[]).push(a));let ot=0,fs=0;Object.entries(days).forEach(([ds,aa])=>{let m=dayWorkMinutes(aa);if([5,6].includes(dow(ds)))fs+=m;else ot+=Math.max(0,m-target())});let workTotal=acts.filter(a=>a.type==='work').reduce((s,a)=>s+activityDuration(a),0);
  let body=Object.entries(days).map(([ds,aa])=>`<div class="day"><b>${new Date(ds+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})}</b>${aa.map(a=>`<div class="activity"><span><span class="tag">${types[a.type]}</span> ${a.start}–${a.end} · ${fmt(activityDuration(a))}${a.auto?' · automatisch':''}</span><button class="small secondary" onclick="editDay('${a.date}')">Bewerk dag</button></div>`).join('')}</div>`).join('');let d=document.createElement('div');d.className='week';d.innerHTML=`<div class="weekhead" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden"><span>Week ${w}</span><span>${fmt(workTotal)} gewerkt · ${fmt(ot)} normaal extra · ${fmt(fs)} vr/za</span></div><div class="weekbody">${body}</div>`;box.appendChild(d)})
 }
-function renderPlanned(){let y=+yearSelect.value,a=db.planned.filter(x=>x.date.startsWith(y+'-')).sort((a,b)=>a.date.localeCompare(b.date));document.getElementById('plannedList').innerHTML=a.length?'<h3>Gepland</h3>'+a.map(x=>`<div class="activity"><span>${new Date(x.date+'T12:00').toLocaleDateString('nl-NL')} · 8:00 uur</span><button class="small secondary" onclick="editPlanned('${x.id}')">Bewerk</button></div>`).join(''):'<div class="muted">Nog geen gepland verlof.</div>'}
+function renderPlanned(){let y=+yearSelect.value,a=db.planned.filter(x=>x.date.startsWith(y+'-')).sort((a,b)=>a.date.localeCompare(b.date));document.getElementById('plannedList').innerHTML=a.length?'<h3>Gepland</h3>'+a.map(x=>`<div class="activity"><span>${new Date(x.date+'T12:00').toLocaleDateString('nl-NL')} · 8:00 uur</span><span><button class="small secondary" onclick="editPlanned('${x.id}')">Bewerk</button><button class="small danger" onclick="deletePlanned('${x.id}')">Verwijder</button></span></div>`).join(''):'<div class="muted">Nog geen gepland verlof.</div>'}
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mijn-uren-backup.json';a.click();URL.revokeObjectURL(a.href)}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();init();alert('Back-up teruggezet.')}catch(x){alert('Dit bestand is geen geldige back-up.')}};r.readAsText(f)}
 init();
