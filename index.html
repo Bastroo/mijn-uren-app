@@ -62,7 +62,7 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 <div class="notice" id="preview">Duur: 0:00</div>
 <button onclick="saveActivity()">Opslaan</button>
 <button class="secondary" onclick="clearForm()">Leegmaken</button>
-<div class="muted">Je kunt meerdere activiteiten op dezelfde dag invoeren, bijvoorbeeld 4 uur werken + 2 uur tandarts + 2 uur verlof.</div>
+<div class="muted">Je kunt meerdere activiteiten op dezelfde dag invoeren, bijvoorbeeld 4 uur werken + 2 uur tandarts + 2 uur verlof.</div><div id="dayActivities" style="margin-top:10px"></div>
 </section>
 
 <section class="card">
@@ -135,11 +135,27 @@ function updatePreview(){let a={type:document.getElementById('type').value,start
 function toggleType(){let work=document.getElementById('type').value==='work';document.getElementById('pauseArea').style.display=work?'block':'none';updatePreview()}
 function clearForm(){editId=null;document.getElementById('start').value='07:30';document.getElementById('end').value='16:30';document.getElementById('type').value='work';document.getElementById('pauses').innerHTML='';addPause('12:00','13:00');toggleType()}
 function saveActivity(){
- let a={id:editId||crypto.randomUUID(),date:date.value,type:type.value,start:start.value,end:end.value,pauses:[]};
+ const fDate=document.getElementById('date').value;
+ const fType=document.getElementById('type').value;
+ const fStart=document.getElementById('start').value;
+ const fEnd=document.getElementById('end').value;
+ let a={id:editId||crypto.randomUUID(),date:fDate,type:fType,start:fStart,end:fEnd,pauses:[]};
  if(!a.date||!a.start||!a.end){alert('Vul datum, begin en einde in.');return}
  if(a.type==='work')a.pauses=[...document.querySelectorAll('.pause')].map(p=>({start:p.querySelector('.ps').value,end:p.querySelector('.pe').value})).filter(p=>p.start&&p.end);
- let old=db.activities.findIndex(x=>x.id===a.id);if(old>=0)db.activities[old]=a;else db.activities.push(a);
+ if(editId){
+   const old=db.activities.findIndex(x=>x.id===editId);
+   if(old>=0) db.activities[old]=a; else db.activities.push(a);
+ } else {
+   // Een nieuwe registratie wordt ALTIJD toegevoegd. Daardoor kunnen op dezelfde dag meerdere activiteiten staan.
+   db.activities.push(a);
+ }
  save();editId=null;clearForm();render();
+ showDayActivities(fDate);
+}
+function showDayActivities(ds){
+ const box=document.getElementById('dayActivities'); if(!box) return;
+ const arr=db.activities.filter(a=>a.date===ds).sort((a,b)=>a.start.localeCompare(b.start));
+ box.innerHTML=arr.length ? '<b>Activiteiten op '+new Date(ds+'T12:00').toLocaleDateString('nl-NL')+':</b>'+arr.map(a=>`<div class=\"activity\"><span><span class=\"tag\">${types[a.type]}</span> ${a.start}–${a.end} · ${fmt(activityDuration(a))}</span><button class=\"small secondary\" onclick='edit(${JSON.stringify(a)})'>Bewerk</button></div>`).join('') : '';
 }
 function autoFill(){
  let startDate=dateObj(db.settings.employment), today=new Date();today.setHours(0,0,0,0);
