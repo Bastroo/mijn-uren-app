@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1f2937">
 <link rel="manifest" href="manifest.json">
-<title>Mijn Uren v4.6</title>
+<title>Mijn Uren v5.0</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}
 header{background:#1f2937;color:white;padding:18px 16px}header h1{margin:0 0 4px;font-size:24px}.sub{opacity:.8}
@@ -67,6 +67,11 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 </div>
 </section>
 <section class="card">
+<h2>Overuren per kwartaal</h2>
+<div class="muted">Hier zie je per kwartaal op welke dagen extra uren zijn gemaakt. Per registratie kun je aangeven of de uren nog openstaan, voor tijd-voor-tijd zijn gebruikt of zijn uitbetaald.</div>
+<div id="quarterOvertime"></div>
+</section>
+<section class="card">
 <h2>Afwezigheidsoverzicht</h2>
 <div class="grid" id="absenceCards"></div>
 </section>
@@ -90,7 +95,8 @@ details{margin:8px 0}summary{cursor:pointer;font-weight:bold}
 <script>
 const KEY='mijn-uren-v4';
 const types={work:'Gewerkt',leave:'Verlof',dentist:'Tandarts',doctor:'Dokter',child_sick:'Kind ziek',self_sick:'Zelf ziek',other:'Overig'};
-let db=JSON.parse(localStorage.getItem(KEY)||'null')||{activities:[],planned:[],settings:{weekly:32,annualLeave:160,q4Leave:40,employment:'2026-10-01'}};
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{activities:[],planned:[],otStatus:{},settings:{weekly:32,annualLeave:160,q4Leave:40,employment:'2026-10-01'}};
+if(!db.otStatus) db.otStatus={};
 let editingDay=false,editingPlannedId=null,scheduleCount=0;
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function mins(t){if(!t)return 0;let [h,m]=t.split(':').map(Number);return h*60+m}
@@ -200,6 +206,35 @@ function yearStats(y){
   const remainingMinutes=Math.max(0,availableMinutes-plannedMinutes);
   return {baseMinutes,carryMinutes,grossAvailableMinutes,availableMinutes,takenMinutes,plannedMinutes,remainingMinutes};
 }
+
+function overtimeEntries(y){
+  const arr=db.activities.filter(a=>inYear(a,y));
+  const byDay={};
+  arr.forEach(a=>(byDay[a.date]??=[]).push(a));
+  return Object.entries(byDay).map(([date,acts])=>{
+    const m=dayWorkMinutes(acts), d=dow(date);
+    let normal=0, fs=0, kind='';
+    if(d>=1&&d<=4){ normal=Math.max(0,m-target()); if(normal>0) kind='normal'; }
+    else if(d===5||d===6){ fs=m; if(fs>0) kind='fs'; }
+    if(!kind) return null;
+    const key=date+'|'+kind;
+    return {date,minutes:kind==='normal'?normal:fs,kind,key,status:db.otStatus[key]||'open'};
+  }).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date));
+}
+function setOtStatus(key,value){db.otStatus[key]=value;save();render();}
+function renderQuarterOvertime(){
+  const y=+yearSelect.value, entries=overtimeEntries(y), box=document.getElementById('quarterOvertime');
+  const qs=[1,2,3,4].map(q=>({q,items:entries.filter(e=>Math.ceil((+e.date.slice(5,7))/3)===q)}));
+  box.innerHTML=qs.map(({q,items})=>{
+    const total=items.reduce((s,e)=>s+e.minutes,0);
+    const open=items.filter(e=>e.status==='open').reduce((s,e)=>s+e.minutes,0);
+    const ttv=items.filter(e=>e.status==='ttv').reduce((s,e)=>s+e.minutes,0);
+    const paid=items.filter(e=>e.status==='paid').reduce((s,e)=>s+e.minutes,0);
+    const rows=items.length?items.map(e=>`<div class="activity"><span><b>${new Date(e.date+'T12:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'long'})}</b> · ${e.kind==='normal'?'Normale overuren':'Vrijdag/zaterdag extra'} · <b>${fmt(e.minutes)}</b></span><select class="otstatus" onchange="setOtStatus('${e.key}',this.value)"><option value="open" ${e.status==='open'?'selected':''}>Openstaand</option><option value="ttv" ${e.status==='ttv'?'selected':''}>Tijd voor tijd</option><option value="paid" ${e.status==='paid'?'selected':''}>Uitbetaald</option></select></div>`).join(''):'<div class="muted">Geen extra uren in dit kwartaal.</div>';
+    return `<details ${items.length?'open':''}><summary>Q${q} · ${fmt(total)} extra · Openstaand ${fmt(open)} · Tijd voor tijd ${fmt(ttv)} · Uitbetaald ${fmt(paid)}</summary><div style="padding-top:8px">${rows}</div></details>`;
+  }).join('');
+}
+
 function render(){
  fillYears();let y=+yearSelect.value;document.getElementById('yearTitle').textContent=y;let arr=db.activities.filter(a=>inYear(a,y));
  let byDay={};arr.forEach(a=>(byDay[a.date]??=[]).push(a));let normal=0,fs=0;Object.entries(byDay).forEach(([ds,aa])=>{let m=dayWorkMinutes(aa),d=dow(ds);if([5,6].includes(d))fs+=m;else normal+=Math.max(0,m-target())});
@@ -212,7 +247,7 @@ function render(){
  document.getElementById('taken').textContent=fmt(ys.takenMinutes);
  document.getElementById('planned').textContent=fmt(ys.plannedMinutes);
  document.getElementById('remaining').textContent=fmt(ys.remainingMinutes);
- renderAbsenceCards();renderWeeks(y);renderPlanned()
+ renderAbsenceCards();renderWeeks(y);renderPlanned();renderQuarterOvertime()
 }
 function renderWeeks(y){
  let arr=db.activities.filter(a=>inYear(a,y)).sort((a,b)=>a.date.localeCompare(b.date)),map={};arr.forEach(a=>(map[week(a.date)]??=[]).push(a));let box=document.getElementById('weeks');box.innerHTML='';
