@@ -174,19 +174,30 @@ function renderAbsenceCards(){let box=document.getElementById('absenceCards'),y=
 function dayWorkMinutes(acts){return acts.filter(a=>a.type==='work').reduce((s,a)=>s+activityDuration(a),0)}
 function yearStats(y){
   y=Number(y);
+  // Verlof wordt per kalenderjaar berekend. Voor 2026 gebruiken we de ingestelde Q4-opbouw.
   let baseHours=+db.settings.annualLeave||0;
   if(y===2026 && db.settings.employment==='2026-10-01') baseHours=+db.settings.q4Leave||0;
+
+  // Het eindsaldo van het vorige jaar wordt meegenomen naar dit jaar.
   let carryMinutes=0;
   if(y>2026){
-    let prev=yearStats(y-1);
+    const prev=yearStats(y-1);
     carryMinutes=Math.max(0,prev.remainingMinutes);
   }
-  let arr=db.activities.filter(a=>inYear(a,y));
-  let takenMinutes=arr.filter(a=>a.type==='leave').reduce((sum,a)=>sum+activityDuration(a),0);
-  let plannedMinutes=db.planned.filter(a=>a.date.startsWith(y+'-')).length*8*60;
-  let baseMinutes=baseHours*60, grossAvailableMinutes=baseMinutes+carryMinutes;
-  let availableMinutes=Math.max(0,grossAvailableMinutes-takenMinutes);
-  let remainingMinutes=Math.max(0,availableMinutes-plannedMinutes);
+
+  const arr=db.activities.filter(a=>inYear(a,y));
+  // Alleen daadwerkelijk geregistreerd verlof telt als opgenomen verlof.
+  const takenMinutes=arr.filter(a=>a.type==='leave').reduce((sum,a)=>sum+activityDuration(a),0);
+
+  // Gepland verlof staat apart in db.planned en kost altijd 8 uur per geplande maandag t/m donderdag.
+  // Gebruik unieke datums zodat een dubbele registratie nooit dubbel wordt afgetrokken.
+  const plannedDates=[...new Set(db.planned.filter(a=>a.date && a.date.slice(0,4)===String(y)).map(a=>a.date))];
+  const plannedMinutes=plannedDates.length*8*60;
+
+  const baseMinutes=baseHours*60;
+  const grossAvailableMinutes=baseMinutes+carryMinutes;
+  const availableMinutes=Math.max(0,grossAvailableMinutes-takenMinutes);
+  const remainingMinutes=Math.max(0,availableMinutes-plannedMinutes);
   return {baseMinutes,carryMinutes,grossAvailableMinutes,availableMinutes,takenMinutes,plannedMinutes,remainingMinutes};
 }
 function render(){
@@ -194,7 +205,13 @@ function render(){
  let byDay={};arr.forEach(a=>(byDay[a.date]??=[]).push(a));let normal=0,fs=0;Object.entries(byDay).forEach(([ds,aa])=>{let m=dayWorkMinutes(aa),d=dow(ds);if([5,6].includes(d))fs+=m;else normal+=Math.max(0,m-target())});
  document.getElementById('ot').textContent=fmt(normal);document.getElementById('fs').textContent=fmt(fs);document.getElementById('totalExtra').textContent=fmt(normal+fs);
  let ys=yearStats(y);
- document.getElementById('baseLeave').textContent=fmt(ys.baseMinutes);document.getElementById('carryLeave').textContent=fmt(ys.carryMinutes);document.getElementById('grossAvailable').textContent=fmt(ys.grossAvailableMinutes);document.getElementById('available').textContent=fmt(ys.availableMinutes);document.getElementById('taken').textContent=fmt(ys.takenMinutes);document.getElementById('planned').textContent=fmt(ys.plannedMinutes);document.getElementById('remaining').textContent=fmt(ys.remainingMinutes);
+ document.getElementById('baseLeave').textContent=fmt(ys.baseMinutes);
+ document.getElementById('carryLeave').textContent=fmt(ys.carryMinutes);
+ document.getElementById('grossAvailable').textContent=fmt(ys.grossAvailableMinutes);
+ document.getElementById('available').textContent=fmt(ys.availableMinutes);
+ document.getElementById('taken').textContent=fmt(ys.takenMinutes);
+ document.getElementById('planned').textContent=fmt(ys.plannedMinutes);
+ document.getElementById('remaining').textContent=fmt(ys.remainingMinutes);
  renderAbsenceCards();renderWeeks(y);renderPlanned()
 }
 function renderWeeks(y){
